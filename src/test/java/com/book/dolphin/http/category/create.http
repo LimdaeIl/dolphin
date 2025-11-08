@@ -1,0 +1,19 @@
+### 카테고리 생성(루트)
+POST http://localhost:10000/api/v1/categories/create
+Content-Type: application/json
+
+{
+  "name": "남성",
+  "slug": "men"
+}
+
+### 카테고리 생성(직계 자식)
+POST http://localhost:10000/api/v1/categories/create
+Content-Type: application/json
+
+{
+  "name": "상의",
+  "slug": "top",
+  "parentId": 1
+}
+
