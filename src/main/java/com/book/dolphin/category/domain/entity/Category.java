@@ -128,7 +128,6 @@ public class Category {
             String name,
             String slug,
             Category parent,
-            String path,
             Integer sortOrderDefault,
             CategoryStatus statusDefault
     ) {
@@ -136,7 +135,7 @@ public class Category {
                 .name(name)
                 .slug(slug)
                 .parent(parent)
-                .path(path)
+                .path(parent.getPath() + "/" + slug)
                 .sortOrder(sortOrderDefault == null ? 0 : sortOrderDefault)
                 .status(statusDefault == null ? CategoryStatus.READY : statusDefault)
                 .depth(parent.getDepth() + 1)

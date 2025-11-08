@@ -23,10 +23,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j(topic = "CategoryService")
-@RequiredArgsConstructor
 @Service
+@RequiredArgsConstructor
+@Slf4j(topic = "CategoryService")
 public class CategoryService {
+
+    private static final int MAX_DEPTH = 6;
 
     private final CategoryRepository categoryRepository;
     private final CategoryClosureRepository categoryClosureRepository;
@@ -41,17 +43,23 @@ public class CategoryService {
         final CategoryStatus status =
                 request.status() == null ? CategoryStatus.READY : request.status();
 
-        // 0) 부모 로딩 (null이면 루트)
+        // 0) 부모 로딩
         Category parent = null;
         if (parentId != null) {
             parent = categoryRepository.findById(parentId)
                     .orElseThrow(() -> new CategoryException(PARENT_CATEGORY_NOT_FOUND, parentId));
         }
 
-        // 1) 선제 중복 검사 (UX용) — 레이스는 고려하지 않음
-        final String path = (parent == null) ? ("/" + slug) : (parent.getPath() + "/" + slug);
-        log.info("path : {}", path);
+        // 0-1) 깊이 검증 (루트=0, 부모가 있으면 부모+1)
+        final int newDepth = (parent == null) ? 0 : parent.getDepth() + 1;
+        if (newDepth > MAX_DEPTH) {
+            throw new CategoryException(
+                    CategoryErrorCode.MAX_DEPTH_EXCEEDED, MAX_DEPTH, parentId
+            );
+        }
 
+        // 1) 선제 중복 검사 (UX용)
+        final String path = (parent == null) ? ("/" + slug) : (parent.getPath() + "/" + slug);
         if (parent == null) {
             if (categoryRepository.existsByParentIsNullAndSlug(slug)) {
                 throw new CategoryException(DUPLICATE_SLUG_BY_ROOT, slug);
@@ -65,18 +73,18 @@ public class CategoryService {
             throw new CategoryException(ALREADY_PATH, path);
         }
 
-        // 2) 엔티티 생성 & 저장 (예외는 그대로 바깥으로 던짐)
+        // 2) 저장
         final Category saved = (parent == null)
                 ? categoryRepository.save(createRoot(name, slug, sortOrder, status))
-                : categoryRepository.save(createChild(name, slug, parent, path, sortOrder, status));
+                : categoryRepository.save(createChild(name, slug, parent, sortOrder, status));
 
-        // 3) 클로저 생성: self(0) + (부모의 모든 조상 → 신규, depth+1)
+        // 3) 클로저 생성
         final List<CategoryClosure> closures = new ArrayList<>();
         closures.add(CategoryClosure.create(saved, saved, 0)); // self
-
         if (parent != null) {
             var parentAncestors = categoryClosureRepository.findAllAncestorsOf(parent.getId());
             for (var pa : parentAncestors) {
+                // pa.depth 는 ancestor→parent 까지의 거리, 신규 노드는 +1
                 closures.add(CategoryClosure.create(pa.getAncestor(), saved, pa.getDepth() + 1));
             }
         }
@@ -96,7 +104,6 @@ public class CategoryService {
     }
 
     private static String normalizeSlug(String raw) {
-        // 슬러그 정규화(기본): trim → 소문자 → 공백→- → 연속 하이픈 1개로 → 허용문자만
         String s = raw == null ? "" : raw.trim().toLowerCase();
         s = s.replaceAll("\\s+", "-");
         s = s.replaceAll("-{2,}", "-");
@@ -107,3 +114,4 @@ public class CategoryService {
         return s;
     }
 }
+

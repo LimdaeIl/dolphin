@@ -3,8 +3,10 @@ package com.book.dolphin.category.application.dto.request;
 import com.book.dolphin.category.domain.entity.CategoryStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.AccessLevel;
+import lombok.Builder;
 
-
+@Builder(access = AccessLevel.PRIVATE)
 public record CreateCategoryRequest(
 
         Long parentId,
@@ -20,6 +22,4 @@ public record CreateCategoryRequest(
         Integer sortOrder,
 
         CategoryStatus status
-) {
-
-}
+) {}

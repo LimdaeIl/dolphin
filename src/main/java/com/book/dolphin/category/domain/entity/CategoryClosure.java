@@ -62,7 +62,9 @@ public class CategoryClosure {
     public static CategoryClosure create(Category ancestor, Category descendant, int depth) {
         return new CategoryClosure(
                 CategoryClosureId.create(ancestor.getId(), descendant.getId()),
-                ancestor, descendant, depth
+                ancestor,
+                descendant,
+                depth
         );
     }
 }
