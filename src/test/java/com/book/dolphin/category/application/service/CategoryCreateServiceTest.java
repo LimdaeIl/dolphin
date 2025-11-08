@@ -29,9 +29,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-@DisplayName("카테고리 서비스")
+@DisplayName("카테고리 서비스 - 생성(create)")
 @ExtendWith(MockitoExtension.class)
-class CategoryServiceTest {
+class CategoryCreateServiceTest {
 
     @InjectMocks
     private CategoryService categoryService;
@@ -54,7 +54,7 @@ class CategoryServiceTest {
         id = 1L;
         name = "남성";
         slug = "men";
-        root = Category.createRoot(name, slug, null, null);
+        root = Category.createRoot(name, slug, null, null, null);
         // PK 강제 세팅
         ReflectionTestUtils.setField(root, "id", id);
 
@@ -66,7 +66,7 @@ class CategoryServiceTest {
     void create_root_category_success() {
         // given
         CreateCategoryRequest request = new CreateCategoryRequest(
-                null, name, slug, null, null
+                null, name, slug, null, null, null
         );
 
         when(categoryRepository.existsByParentIsNullAndSlug(slug)).thenReturn(false);
@@ -102,12 +102,12 @@ class CategoryServiceTest {
     void create_direct_category_success() {
         // given
         long parentId = 1L;
-        Category root = Category.createRoot("남성", "men", 0, CategoryStatus.READY);
+        Category root = Category.createRoot("남성", "men", 0, CategoryStatus.READY, null);
         ReflectionTestUtils.setField(root, "id", parentId); // /men
 
         String childName = "상의";
         String childSlug = "top";
-        Category child = Category.createChild(childName, childSlug, root, 0, CategoryStatus.READY);
+        Category child = Category.createChild(childName, childSlug, root, 0, CategoryStatus.READY, null);
         ReflectionTestUtils.setField(child, "id", 2L); // /men/top
 
         // 요청 DTO (path 없음!)
@@ -116,7 +116,8 @@ class CategoryServiceTest {
                 childName,         // name
                 childSlug,         // slug
                 0,                 // sortOrder
-                CategoryStatus.ACTIVE // optional
+                CategoryStatus.ACTIVE, // optional
+                null               // imageUrl
         );
 
         // 선제 검증 스텁
@@ -161,15 +162,15 @@ class CategoryServiceTest {
         long childId = 2L;
         long grandId = 3L;
 
-        Category root = Category.createRoot("남성", "men", 0, CategoryStatus.READY);
+        Category root = Category.createRoot("남성", "men", 0, CategoryStatus.READY, null);
         ReflectionTestUtils.setField(root, "id", rootId);
 
-        Category child = Category.createChild("상의", "top", root, 0, CategoryStatus.READY);
+        Category child = Category.createChild("상의", "top", root, 0, CategoryStatus.READY, null);
         ReflectionTestUtils.setField(child, "id", childId);
 
         String grandName = "셔츠";
         String grandSlug = "shirts";
-        Category grandchild = Category.createChild(grandName, grandSlug, child, 0, CategoryStatus.READY);
+        Category grandchild = Category.createChild(grandName, grandSlug, child, 0, CategoryStatus.READY, null);
         ReflectionTestUtils.setField(grandchild, "id", grandId); // /men/top/shirts
 
         CreateCategoryRequest request = new CreateCategoryRequest(
@@ -177,7 +178,8 @@ class CategoryServiceTest {
                 grandName,
                 grandSlug,
                 0,
-                CategoryStatus.ACTIVE
+                CategoryStatus.ACTIVE,
+                null
         );
 
         when(categoryRepository.findById(childId)).thenReturn(Optional.of(child));
@@ -250,6 +252,7 @@ class CategoryServiceTest {
                 "상의",
                 "top",
                 0,
+                null,
                 null
         );
 
@@ -275,7 +278,7 @@ class CategoryServiceTest {
     @Test
     void create_child_at_max_depth_success() {
         // given
-        Category parent = Category.createRoot("레벨5", "lv5", 0, CategoryStatus.READY);
+        Category parent = Category.createRoot("레벨5", "lv5", 0, CategoryStatus.READY, null);
         ReflectionTestUtils.setField(parent, "id", 10L);
         ReflectionTestUtils.setField(parent, "depth", 5);
 
@@ -283,7 +286,7 @@ class CategoryServiceTest {
         when(categoryRepository.existsByParentIdAndSlug(10L, "leaf")).thenReturn(false);
         when(categoryRepository.existsByPath("/lv5/leaf")).thenReturn(false);
 
-        Category child = Category.createChild("리프", "leaf", parent, 0, CategoryStatus.READY);
+        Category child = Category.createChild("리프", "leaf", parent, 0, CategoryStatus.READY, null);
         ReflectionTestUtils.setField(child, "id", 11L);
 
         // when & then
@@ -293,7 +296,7 @@ class CategoryServiceTest {
         when(categoryClosureRepository.saveAll(anyList())).thenReturn(List.of());
 
         CreateCategoryResponse response = categoryService.create(
-                new CreateCategoryRequest(10L, "리프", "leaf", 0, null));
+                new CreateCategoryRequest(10L, "리프", "leaf", 0, null, null));
         assertThat(response.depth()).isEqualTo(6);
     }
 
@@ -301,7 +304,7 @@ class CategoryServiceTest {
     @Test
     void create_child_exceeds_max_depth_fail() {
         // given
-        Category parent = Category.createRoot("레벨6", "lv6", 0, CategoryStatus.READY);
+        Category parent = Category.createRoot("레벨6", "lv6", 0, CategoryStatus.READY, null);
         ReflectionTestUtils.setField(parent, "id", 20L);
         ReflectionTestUtils.setField(parent, "depth", 6);
 
@@ -309,7 +312,7 @@ class CategoryServiceTest {
 
         // when & then
         CategoryException exception = assertThrows(CategoryException.class, () ->
-                categoryService.create(new CreateCategoryRequest(20L, "X", "x", 0, null))
+                categoryService.create(new CreateCategoryRequest(20L, "X", "x", 0, null, null))
         );
         assertThat(exception.getErrorCode()).isEqualTo(CategoryErrorCode.MAX_DEPTH_EXCEEDED);
     }

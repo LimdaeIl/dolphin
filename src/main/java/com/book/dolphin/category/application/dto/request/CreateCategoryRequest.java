@@ -21,5 +21,7 @@ public record CreateCategoryRequest(
 
         Integer sortOrder,
 
-        CategoryStatus status
+        CategoryStatus status,
+
+        String imageUrl
 ) {}
