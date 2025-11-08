@@ -17,58 +17,60 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     // 루트들 (고객 노출: ACTIVE만; 관리화면은 activeOnly=false로 분기)
     @Query("""
-        select c from Category c
-        where c.parent is null
-          and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
-        order by c.sortOrder asc, c.name asc
-    """)
+                select c from Category c
+                where c.parent is null
+                  and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
+                order by c.sortOrder asc, c.name asc
+            """)
     List<Category> findRoots(boolean activeOnly);
 
     // 특정 부모의 직계
     @Query("""
-        select c from Category c
-        where c.parent.id = :parentId
-          and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
-        order by c.sortOrder asc, c.name asc
-    """)
+                select c from Category c
+                where c.parent.id = :parentId
+                  and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
+                order by c.sortOrder asc, c.name asc
+            """)
     List<Category> findDirectChildren(Long parentId, boolean activeOnly);
 
     // 직계 자식 수(뱃지용)
     @Query("""
-        select c.parent.id as parentId, count(c.id) as cnt
-        from Category c
-        where c.parent.id in :parentIds
-          and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
-        group by c.parent.id
-    """)
+                select c.parent.id as parentId, count(c.id) as cnt
+                from Category c
+                where c.parent.id in :parentIds
+                  and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
+                group by c.parent.id
+            """)
     List<Object[]> countChildrenByParents(Collection<Long> parentIds, boolean activeOnly);
 
     // 형제들(현재 제외). 부모가 없으면 “다른 루트들”
     @Query("""
-        select c from Category c
-        where (:parentId is null and c.parent is null)
-           or (c.parent.id = :parentId)
-          and c.id <> :selfId
-          and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
-        order by c.sortOrder asc, c.name asc
-    """)
+                select c from Category c
+                where (
+                         (:parentId is null and c.parent is null)
+                      or (c.parent.id = :parentId)
+                      )
+                  and c.id <> :selfId
+                  and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
+                order by c.sortOrder asc, c.name asc
+            """)
     List<Category> findSiblings(Long parentId, Long selfId, boolean activeOnly);
 
     // 브레드크럼: 조상들(루트→현재) 정렬
     @Query("""
-        select cc.ancestor
-        from CategoryClosure cc
-        where cc.descendant.id = :descId
-          and (:activeOnly = false or cc.ancestor.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
-        order by cc.depth asc
-    """)
+                select cc.ancestor
+                from CategoryClosure cc
+                where cc.descendant.id = :descId
+                  and (:activeOnly = false or cc.ancestor.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
+                order by cc.depth asc
+            """)
     List<Category> findBreadcrumbAncestors(Long descId, boolean activeOnly);
 
     @Query("""
-        select c from Category c
-        where c.id = :id
-          and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
-    """)
+                select c from Category c
+                where c.id = :id
+                  and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
+            """)
     Optional<Category> findOneForDetail(Long id, boolean activeOnly);
 
 }

@@ -200,7 +200,7 @@ class CategoryGetDetailServiceTest {
     }
 
     @Test
-    @DisplayName("실패: 대상 카테고리 없음 → CategoryException(CATEGORY_NOT_FOUND)")
+    @DisplayName("실패: 대상 카테고리 없음 -> CategoryException(CATEGORY_NOT_FOUND)")
     void get_detail_not_found() {
         boolean activeOnly = true;
         Long targetId = 999L;
