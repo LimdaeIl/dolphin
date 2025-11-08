@@ -1,0 +1,290 @@
+### 0) 공통 베이스 URL
+@baseUrl = http://localhost:10000/api/v1/categories
+
+### 1) 루트: 준비중1
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "준비중1",
+  "slug": "ready1"
+}
+
+> {% client.global.set("READY1", response.body.data.id); %}
+
+
+### 2) 루트: 준비중2
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "준비중2",
+  "slug": "ready2"
+}
+
+> {% client.global.set("READY2", response.body.data.id); %}
+
+
+### 3) 루트: 남성
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "남성",
+  "slug": "men",
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("MEN_ID", response.body.data.id); %}
+
+### 4) 루트: 여성
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "여성",
+  "slug": "women",
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("WOMEN_ID", response.body.data.id); %}
+
+
+### 5) 남성/상의 (parent = 남성)
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "상의",
+  "slug": "top",
+  "parentId": {{MEN_ID}},
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("MEN_TOP_ID", response.body.data.id); %}
+
+### 6) 남성/하의 (parent = 남성)
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "하의",
+  "slug": "bottom",
+  "parentId": {{MEN_ID}},
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("MEN_BOTTOM_ID", response.body.data.id); %}
+
+### 7) 남성/상의/셔츠 (parent = 남성/상의)
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "셔츠",
+  "slug": "shirts",
+  "parentId": {{MEN_TOP_ID}},
+  "status": "ACTIVE"
+}
+
+### 8) 남성/하의/청바지 (parent = 남성/하의)
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "청바지",
+  "slug": "jeans",
+  "parentId": {{MEN_BOTTOM_ID}},
+  "status": "ACTIVE"
+}
+
+
+### 9) 여성/상의 (parent = 여성)
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "상의",
+  "slug": "top",
+  "parentId": {{WOMEN_ID}},
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("WOMEN_TOP_ID", response.body.data.id); %}
+
+### 10) 여성/아우터 (parent = 여성)
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "아우터",
+  "slug": "outer",
+  "parentId": {{WOMEN_ID}},
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("WOMEN_OUTER_ID", response.body.data.id); %}
+
+### 11) 여성/상의/셔츠 (parent = 여성/상의)
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "셔츠",
+  "slug": "shirts",
+  "parentId": {{WOMEN_TOP_ID}},
+  "status": "ACTIVE"
+}
+
+### 12) 여성/아우터/코트 (parent = 여성/아우터)
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "코트",
+  "slug": "coat",
+  "parentId": {{WOMEN_OUTER_ID}},
+  "status": "ACTIVE"
+}
+
+
+############################
+# 1) 메가메뉴(MEGA) 뷰 검증
+############################
+
+### 1-1) 기본 메가메뉴 (selectedRoot 미지정 → 첫 루트가 기본 선택)
+GET {{baseUrl}}?view=mega&activeOnly=true
+
+> {%
+  client.test("mega default - 200", function () {
+    client.assert(response.status === 200, "status should be 200");
+    const data = response.body.data;
+    client.assert(!!data, "data exists");
+    client.assert(Array.isArray(data.roots), "roots array");
+    client.assert(!!data.selectedRoot, "selectedRoot exists");
+    client.assert(Array.isArray(data.childrenOfSelectedRoot), "childrenOfSelectedRoot array");
+    // 추가 검증(선택)
+    client.assert(typeof data.selectedRoot.id === "number", "selectedRoot.id is number");
+    client.assert(data.roots.length >= 1, "at least one root");
+  });
+%}
+
+### 1-2) 특정 루트(남성) 선택 메가메뉴
+GET {{baseUrl}}?view=mega&selectedRootId={{MEN_ID}}&activeOnly=true
+
+> {%
+  client.test("mega men - selectedRoot is 남성", function () {
+    client.assert(response.status === 200, "status 200");
+    const sel = response.body.data.selectedRoot;
+    client.assert(sel.id === Number(client.global.get("MEN_ID")), "selected root is MEN");
+    client.assert(Array.isArray(response.body.data.childrenOfSelectedRoot), "childrenOfSelectedRoot array");
+  });
+%}
+
+### 1-3) 특정 루트(여성) 선택 메가메뉴
+GET {{baseUrl}}?view=mega&selectedRootId={{WOMEN_ID}}&activeOnly=true
+
+> {%
+  client.test("mega women - selectedRoot is 여성", function () {
+    client.assert(response.status === 200, "status 200");
+    const sel = response.body.data.selectedRoot;
+    client.assert(sel.id === Number(client.global.get("WOMEN_ID")), "selected root is WOMEN");
+    client.assert(Array.isArray(response.body.data.childrenOfSelectedRoot), "childrenOfSelectedRoot array");
+  });
+%}
+
+################################
+# 2) 상세(DETAIL) 뷰 검증 시나리오
+################################
+# include 파라미터로 children/siblings/roots/breadcrumb 조합을 제어한다.
+
+
+### 2-1) 루트(남성) 상세: breadcrumb + children + siblings + roots
+#@name 2-1) 루트(남성) 상세: breadcrumb + children + siblings + roots
+GET {{baseUrl}}/{{MEN_ID}}?activeOnly=true&include=children,breadcrumb,siblings,roots
+# 루트는 상위가 없으므로 siblings는 "같은 루트 레벨의 다른 루트들"이 아님에 유의.
+
+
+> {%
+  client.test("detail root men - ok", function () {
+    client.assert(response.status === 200, "status 200");
+    const d = response.body.data;
+    client.assert(d.category.path === "/men", "path=/men");
+    client.assert(Array.isArray(d.breadcrumb), "breadcrumb array");
+    client.assert(Array.isArray(d.children), "children array");
+    client.assert(Array.isArray(d.siblings), "siblings array"); // 루트에선 보통 비어있거나 정책에 따라 다름
+    client.assert(Array.isArray(d.roots), "roots array");
+  });
+%}
+
+### 2-2) 남성/상의 상세: breadcrumb + children
+GET {{baseUrl}}/{{MEN_TOP_ID}}?activeOnly=true&include=children,breadcrumb
+
+> {%
+  client.test("detail men/top - has children (셔츠, 니트)", function () {
+    client.assert(response.status === 200, "status 200");
+    const d = response.body.data;
+    client.assert(d.category.path === "/men/top", "path=/men/top");
+    const names = d.children.map(x => x.name);
+    client.assert(names.includes("셔츠"), "has 셔츠");
+    // 니트는 더미에 넣었으면 포함, 아니면 주석 처리 가능
+    // client.assert(names.includes("니트"), "has 니트");
+  });
+%}
+
+### 2-3) 남성/상의 상세: siblings만
+# (형제: 같은 부모(남성)를 가진 남성/하의 등)
+# @name get_detail_men_top_siblings
+GET {{baseUrl}}/{{MEN_TOP_ID}}?activeOnly=true&include=siblings,breadcrumb
+
+> {%
+  client.test("detail men/top - siblings include 남성/하의", function () {
+    client.assert(response.status === 200, "status 200");
+    const d = response.body.data;
+    const sNames = d.siblings.map(x => x.name);
+    client.assert(sNames.includes("하의"), "siblings has 하의");
+  });
+%}
+
+### 2-4) 여성/아우터 상세: breadcrumb + children
+# @name get_detail_women_outer_children
+GET {{baseUrl}}/{{WOMEN_OUTER_ID}}?activeOnly=true&include=children,breadcrumb
+
+> {%
+  client.test("detail women/outer - children include 코트", function () {
+    client.assert(response.status === 200, "status 200");
+    const d = response.body.data;
+    const names = d.children.map(x => x.name);
+    client.assert(names.includes("코트"), "children has 코트");
+  });
+%}
+
+### 2-5) 전체 루트 목록도 함께 내려받고 싶을 때 (roots)
+# @name get_detail_with_roots
+GET {{baseUrl}}/{{MEN_TOP_ID}}?activeOnly=true&include=roots,breadcrumb
+
+> {%
+  client.test("detail with roots - returns roots", function () {
+    client.assert(response.status === 200, "status 200");
+    const d = response.body.data;
+    client.assert(Array.isArray(d.roots) && d.roots.length >= 2, "roots include 남성/여성");
+  });
+%}
+
+### 2-6) 존재하지 않는 카테고리 조회 (에러 케이스)
+# @name get_detail_not_found
+GET {{baseUrl}}/999999?activeOnly=true&include=children,breadcrumb
+
+> {%
+  client.test("detail not found - 404 semantics in payload", function () {
+    // 컨트롤러의 응답 래퍼 구조(ApiResponse)에서 httpStatus는 200일 수 있지만,
+    // body.resultCode나 message로 에러를 표현할 수 있다.
+    // 만약 예외 핸들러가 404를 직접 내려주도록 했다면 아래를 404로 바꾸면 됨.
+    client.assert(response.status === 200 || response.status === 404, "status 200 or 404");
+    const body = response.body;
+    // 공통 에러 포맷을 쓰면 여기에 맞춰 체크 (예: message에 '카테고리를 찾을 수 없습니다' 포함)
+    if (body && body.message) {
+      client.assert(body.message.includes("카테고리를 찾을 수 없습니다"), "message includes not found");
+    }
+  });
+%}

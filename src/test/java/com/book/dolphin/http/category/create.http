@@ -1,5 +1,9 @@
-### 카테고리 생성(루트)
-POST http://localhost:10000/api/v1/categories/create
+### 0) 공통 베이스 URL
+@baseUrl = http://localhost:10000/api/v1/categories
+
+### 1) 루트: 남성
+# @name create_men_root
+POST {{baseUrl}}/create
 Content-Type: application/json
 
 {
@@ -7,13 +11,114 @@ Content-Type: application/json
   "slug": "men"
 }
 
-### 카테고리 생성(직계 자식)
-POST http://localhost:10000/api/v1/categories/create
+> {% client.global.set("MEN_ID", response.body.data.id); %}
+
+### 2) 루트: 여성
+# @name create_women_root
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "여성",
+  "slug": "women"
+}
+
+> {% client.global.set("WOMEN_ID", response.body.data.id); %}
+
+
+### 3) 남성/상의 (parent = 남성)
+# @name create_men_top
+POST {{baseUrl}}/create
 Content-Type: application/json
 
 {
   "name": "상의",
   "slug": "top",
-  "parentId": 1
+  "parentId": {{MEN_ID}}
 }
 
+> {% client.global.set("MEN_TOP_ID", response.body.data.id); %}
+
+### 4) 남성/하의 (parent = 남성)
+# @name create_men_bottom
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "하의",
+  "slug": "bottom",
+  "parentId": {{MEN_ID}}
+}
+
+> {% client.global.set("MEN_BOTTOM_ID", response.body.data.id); %}
+
+### 5) 남성/상의/셔츠 (parent = 남성/상의)
+# @name create_men_top_shirts
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "셔츠",
+  "slug": "shirts",
+  "parentId": {{MEN_TOP_ID}}
+}
+
+### 6) 남성/하의/청바지 (parent = 남성/하의)
+# @name create_men_bottom_jeans
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "청바지",
+  "slug": "jeans",
+  "parentId": {{MEN_BOTTOM_ID}}
+}
+
+
+### 7) 여성/상의 (parent = 여성)
+# @name create_women_top
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "상의",
+  "slug": "top",
+  "parentId": {{WOMEN_ID}}
+}
+
+> {% client.global.set("WOMEN_TOP_ID", response.body.data.id); %}
+
+### 8) 여성/아우터 (parent = 여성)
+# @name create_women_outer
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "아우터",
+  "slug": "outer",
+  "parentId": {{WOMEN_ID}}
+}
+
+> {% client.global.set("WOMEN_OUTER_ID", response.body.data.id); %}
+
+### 9) 여성/상의/셔츠 (parent = 여성/상의)
+# @name create_women_top_shirts
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "셔츠",
+  "slug": "shirts",
+  "parentId": {{WOMEN_TOP_ID}}
+}
+
+### 10) 여성/아우터/코트 (parent = 여성/아우터)
+# @name create_women_outer_coat
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "코트",
+  "slug": "coat",
+  "parentId": {{WOMEN_OUTER_ID}}
+}

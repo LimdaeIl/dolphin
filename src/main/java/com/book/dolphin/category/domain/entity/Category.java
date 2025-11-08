@@ -89,6 +89,9 @@ public class Category {
     @Column(nullable = false)
     private int depth = 0;
 
+    @Column(name = "image_url", length = 1024)
+    private String imageUrl = null;
+
     @Builder(access = AccessLevel.PRIVATE)
     private Category(
             String name,
@@ -97,7 +100,9 @@ public class Category {
             String path,
             int sortOrder,
             CategoryStatus status,
-            int depth) {
+            int depth,
+            String imageUrl
+    ) {
         this.name = name;
         this.slug = slug;
         this.parent = parent;
@@ -105,13 +110,15 @@ public class Category {
         this.sortOrder = sortOrder;
         this.status = status;
         this.depth = depth;
+        this.imageUrl = imageUrl;
     }
 
     public static Category createRoot(
             String name,
             String slug,
             Integer sortOrderDefault,
-            CategoryStatus statusDefault
+            CategoryStatus statusDefault,
+            String imageUrl
     ) {
         return Category.builder()
                 .name(name)
@@ -121,6 +128,7 @@ public class Category {
                 .sortOrder(sortOrderDefault == null ? 0 : sortOrderDefault)
                 .status(statusDefault == null ? CategoryStatus.READY : statusDefault)
                 .depth(0)
+                .imageUrl(imageUrl)
                 .build();
     }
 
@@ -129,7 +137,8 @@ public class Category {
             String slug,
             Category parent,
             Integer sortOrderDefault,
-            CategoryStatus statusDefault
+            CategoryStatus statusDefault,
+            String imageUrl
     ) {
         return Category.builder()
                 .name(name)
@@ -139,6 +148,7 @@ public class Category {
                 .sortOrder(sortOrderDefault == null ? 0 : sortOrderDefault)
                 .status(statusDefault == null ? CategoryStatus.READY : statusDefault)
                 .depth(parent.getDepth() + 1)
+                .imageUrl(imageUrl)
                 .build();
     }
 }
