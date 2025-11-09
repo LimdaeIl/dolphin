@@ -26,7 +26,10 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Comment;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 
 @Getter
@@ -67,13 +70,18 @@ public class Product {
     /**
      * 카테고리 연결(정렬/대표 여부를 포함)
      */
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Fetch(FetchMode.SUBSELECT)
+    @BatchSize(size = 100)
     private final List<ProductCategory> categories = new ArrayList<>();
 
     /**
      * 이미지(대표/본문용)
      */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Fetch(FetchMode.SUBSELECT)
+    @BatchSize(size = 100)
     private final List<ProductMedia> mediaList = new ArrayList<>();
 
     /**

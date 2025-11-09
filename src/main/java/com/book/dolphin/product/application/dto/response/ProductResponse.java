@@ -6,7 +6,6 @@ public record ProductResponse(
         Long id,
         String name,
         String content,
-
         String status,
         Long currentPriceWon,
         List<CategoryBrief> categories,

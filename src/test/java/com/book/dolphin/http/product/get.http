@@ -1,0 +1,102 @@
+### 공통: 베이스 URL
+@baseUrl = http://localhost:10000/api/v1/products
+@CategoryBaseUrl = http://localhost:10000/api/v1/categories
+
+### 3) 루트 (parent = null)
+# @name create_men_top
+POST {{CategoryBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "남성",
+  "slug": "men",
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("MEN_TOP_ID", response.body.data.id); %}
+
+### 최소 필드로 상품 생성 (성공)
+# @name create_product_minimal
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "미니멀 티셔츠",
+  "content": "<p>기본 설명</p>",
+  "price": { "listPriceWon": 12900 },
+  "categories": [
+    { "categoryId": {{MEN_TOP_ID}}, "primary": true, "sortKey": 0 }
+  ]
+}
+
+> {% client.global.set("PROD_ID", response.body.data.id); %}
+
+### =================================
+### 1) 상세 조회: GET /{id}
+### =================================
+# @name get_product_detail
+GET {{baseUrl}}/{{PROD_ID}}
+
+### (실패 예시) 존재하지 않는 ID
+# @name get_product_detail_not_found
+GET {{baseUrl}}/999999
+
+### =====================================================
+### 2) 목록/검색/정렬/페이지: GET /list?{keyword,...}
+### =====================================================
+
+# (기본) 파라미터 없이 최근순(기본 정렬) 1페이지
+# @name list_products_default
+GET {{baseUrl}}/list
+
+### 키워드 검색
+# @name list_products_keyword
+GET {{baseUrl}}/list?keyword=티셔츠
+
+### 카테고리 필터 (실제 categoryId로 교체)
+# @name list_products_category
+GET {{baseUrl}}/list?categoryId=1
+
+### 상태 필터 (DRAFT / PUBLISHED / ARCHIVED)
+# @name list_products_status
+GET {{baseUrl}}/list?status=PUBLISHED
+
+### 정렬: 가격 오름차순
+# @name list_products_sort_price_asc
+GET {{baseUrl}}/list?sort=PRICE_ASC
+
+### 정렬: 가격 내림차순
+# @name list_products_sort_price_desc
+GET {{baseUrl}}/list?sort=PRICE_DESC
+
+### 정렬: 최근순(명시)
+# @name list_products_sort_recent
+GET {{baseUrl}}/list?sort=RECENT
+
+### 페이지네이션: page=0, size=10
+# @name list_products_paging
+GET {{baseUrl}}/list?page=0&size=10
+
+### (복합) 키워드 + 카테고리 + 상태 + 정렬 + 페이지
+# @name list_products_combo
+GET {{baseUrl}}/list?keyword=티셔츠&categoryId=1&status=PUBLISHED&sort=RECENT&page=0&size=20
+
+### =========================================
+### 3) 상태 전환: POST /{id}/publish /{id}/archive
+### =========================================
+
+### 공개 전환 (카테고리 ACTIVE 아니면 실패하도록 서비스에서 검증)
+# @name publish_product
+POST {{baseUrl}}/{{PROD_ID}}/publish
+
+### 보관 전환
+# @name archive_product
+POST {{baseUrl}}/{{PROD_ID}}/archive
+
+### (실패 예시) 없는 상품 공개
+# @name publish_not_found
+POST {{baseUrl}}/999999/publish
+
+### (실패 예시) 없는 상품 보관
+# @name archive_not_found
+POST {{baseUrl}}/999999/archive
