@@ -7,9 +7,9 @@ import com.book.dolphin.category.domain.exception.CategoryException;
 import com.book.dolphin.category.domain.repository.CategoryRepository;
 import com.book.dolphin.product.application.dto.request.ProductCreateRequest;
 import com.book.dolphin.product.application.dto.request.ProductCreateRequest.CategoryAssign;
+import com.book.dolphin.product.application.dto.response.ProductListItem;
+import com.book.dolphin.product.application.dto.response.ProductListPage;
 import com.book.dolphin.product.application.dto.response.ProductResponse;
-import com.book.dolphin.product.application.dto.response.ProductResponse.CategoryBrief;
-import com.book.dolphin.product.application.dto.response.ProductResponse.MediaBrief;
 import com.book.dolphin.product.domain.entity.DateRange;
 import com.book.dolphin.product.domain.entity.MediaType;
 import com.book.dolphin.product.domain.entity.Money;
@@ -19,6 +19,7 @@ import com.book.dolphin.product.domain.entity.ProductMedia;
 import com.book.dolphin.product.domain.exception.ProductErrorCode;
 import com.book.dolphin.product.domain.exception.ProductException;
 import com.book.dolphin.product.domain.repository.ProductRepository;
+import com.book.dolphin.product.domain.repository.ProductRepository.ProductListRow;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -136,31 +137,7 @@ public class ProductService {
     }
 
     private ProductResponse toResponse(Product p) {
-        Long currentWon = p.currentPrice()
-                .map(m -> m.getAmount().longValue())
-                .orElse(null);
-
-        List<CategoryBrief> categories = p.getCategories().stream()
-                .sorted(Comparator.comparingInt(ProductCategory::getSortKey))
-                .map(pc -> new CategoryBrief(
-                        pc.getCategory().getId(),
-                        pc.getCategory().getName(),
-                        pc.isPrimary(),
-                        pc.getSortKey()
-                ))
-                .toList();
-
-        List<MediaBrief> reps = p.getMediaList().stream()
-                .filter(m -> m.getType() == MediaType.REPRESENTATIVE)
-                .sorted(Comparator.comparingInt(ProductMedia::getSortKey))
-                .map(m -> new MediaBrief(m.getId(), m.getUrl(), m.getAltText(), m.getSortKey()))
-                .toList();
-
-        List<MediaBrief> contents = p.getMediaList().stream()
-                .filter(m -> m.getType() == MediaType.CONTENT)
-                .sorted(Comparator.comparingInt(ProductMedia::getSortKey))
-                .map(m -> new MediaBrief(m.getId(), m.getUrl(), m.getAltText(), m.getSortKey()))
-                .toList();
+        Long currentWon = p.currentPrice().map(m -> m.getAmount().longValue()).orElse(null);
 
         return new ProductResponse(
                 p.getId(),
@@ -168,9 +145,26 @@ public class ProductService {
                 p.getContent(),
                 p.getProductStatus().name(),
                 currentWon,
-                categories,
-                reps,
-                contents
+                p.getCategories().stream()
+                        .sorted(Comparator.comparingInt(ProductCategory::getSortKey))
+                        .map(pc -> new ProductResponse.CategoryBrief(
+                                pc.getCategory().getId(),
+                                pc.getCategory().getName(),
+                                pc.isPrimary(),
+                                pc.getSortKey()
+                        )).collect(Collectors.toList()),
+                p.getMediaList().stream()
+                        .filter(m -> m.getType() == MediaType.REPRESENTATIVE)
+                        .sorted(Comparator.comparingInt(ProductMedia::getSortKey))
+                        .map(m -> new ProductResponse.MediaBrief(
+                                m.getId(), m.getUrl(), m.getAltText(), m.getSortKey()
+                        )).toList(),
+                p.getMediaList().stream()
+                        .filter(m -> m.getType() == MediaType.CONTENT)
+                        .sorted(Comparator.comparingInt(ProductMedia::getSortKey))
+                        .map(m -> new ProductResponse.MediaBrief(
+                                m.getId(), m.getUrl(), m.getAltText(), m.getSortKey()
+                        )).toList()
         );
     }
 
@@ -250,4 +244,70 @@ public class ProductService {
             }
         }
     }
+
+    // 1) 상세 조회
+    @Transactional(readOnly = true)
+    public ProductResponse getOne(Long id) {
+        Product p = productRepository.findDetailById(id)
+                .orElseThrow(() -> new ProductException(ProductErrorCode.NOT_FOUND_PRODUCT, id));
+        return toResponse(p);
+    }
+
+    // 2) 목록/검색/정렬/페이지
+    @Transactional(readOnly = true)
+    public ProductListPage list(String keyword, Long categoryId, String status, String sort,
+            int page, int size) {
+        int limit = Math.max(1, Math.min(size, 100));
+        int offset = Math.max(0, page) * limit;
+
+        List<ProductListRow> rows = productRepository.findListSimple(
+                emptyToNull(keyword),
+                categoryId,
+                emptyToNull(status),
+                emptyToNull(sort),
+                limit,
+                offset
+        );
+
+        long total = productRepository.countListSimple(
+                emptyToNull(keyword),
+                categoryId,
+                emptyToNull(status)
+        );
+
+        List<ProductListItem> items = rows.stream().map(r ->
+                new ProductListItem(
+                        r.getId(),
+                        r.getName(),
+                        r.getStatus(),
+                        r.getCurrentPrice(),
+                        r.getRepImageUrl()
+                )
+        ).toList();
+
+        return new ProductListPage(items, page, limit, total);
+    }
+
+    // 3) 상태 전환
+    @Transactional
+    public ProductResponse publish(Long id) {
+        Product p = productRepository.findForStatusChange(id)
+                .orElseThrow(() -> new ProductException(ProductErrorCode.NOT_FOUND_PRODUCT, id));
+        p.publish(); // 카테고리 ACTIVE 검증 내부 수행
+        return toResponse(p);
+    }
+
+    @Transactional
+    public ProductResponse archive(Long id) {
+        Product p = productRepository.findById(id)
+                .orElseThrow(() -> new ProductException(ProductErrorCode.NOT_FOUND_PRODUCT, id));
+        p.archive();
+        return toResponse(p);
+    }
+
+    private String emptyToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s;
+    }
+
+
 }

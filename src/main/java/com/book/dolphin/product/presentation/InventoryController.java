@@ -101,4 +101,20 @@ public class InventoryController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * P0
+     * GET /by-variant?variantId=: 옵션 상세에서 현재 재고 즉시 조회.
+     * GET /ledger?inventoryId=…: 재고 흐름(입고/할당/출고) 타임라인 확인용(페이징).
+     *
+     * P1
+     * PATCH /{inventoryId}/policy: safetyStock, backorderable 변경.
+     * Idempotency-Key 지원: inbound/allocate/ship 멱등 처리(결제/재시도 안전).
+     * Optimistic Lock 충돌 대응: version 헤더/바디로 받고 실패 시 409 → 클라이언트 재시도 가이드.
+     *
+     * P2
+     * 예약 만료(할당 TTL) 처리 훅: 장바구니 만료 시 자동 deallocate.
+     * Bulk 입고/조정: 운영툴에서 다건 처리.
+     * 가용성 일괄 조회: 여러 variantId에 대한 재고 스냅샷.
+     */
+
 }
