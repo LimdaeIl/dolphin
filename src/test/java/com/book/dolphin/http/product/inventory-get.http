@@ -1,0 +1,150 @@
+### 0) 공통 베이스 URL
+@HOST = http://localhost:10000
+@baseUrl = http://localhost:10000/api/v1/categories
+@ProductBaseUrl = {{HOST}}/api/v1/products
+@InventoryBaseUrl = {{HOST}}/api/v1/inventories
+
+### (간소) 상품 1개 생성 → PRODUCT_ID 저장
+# @name create_product_minimal_for_inventory
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "인벤토리-테스트용 티셔츠",
+  "content": "<p>인벤토리 테스트</p>",
+  "skuCode": "SKU-INV-TSHIRT-0001",
+  "price": { "listPriceWon": 12900 },
+  "categories": []
+}
+
+> {% client.global.set("PRODUCT_ID", response.body.data.id); %}
+
+### 재고 초기화(init) → INV_ID 저장
+# @name init_inventory
+POST {{InventoryBaseUrl}}
+Content-Type: application/json
+
+{
+  "productId": {{PRODUCT_ID}},
+  "skuCode": "SKU-INV-TSHIRT-0001",
+  "onHand": 0,
+  "safetyStock": 0,
+  "backorderable": false
+}
+
+> {% client.global.set("INV_ID", response.body.data.id); %}
+
+### 정상 플로우: 입고 → 할당 → 출고: 3-1) 입고 +10
+# @name inbound_10
+POST {{InventoryBaseUrl}}/{{INV_ID}}/inbound
+Content-Type: application/json
+
+{ "quantity": 10, "reason": "초도입고" }
+
+
+### 정상 플로우: 입고 → 할당 → 출고: 3-2) 할당 3 (장바구니/주문확정 전)
+# @name allocate_3
+POST {{InventoryBaseUrl}}/{{INV_ID}}/allocate
+Content-Type: application/json
+
+{ "quantity": 3, "reason": "주문 A001 임시할당" }
+
+
+### 정상 플로우: 입고 → 할당 → 출고: 3-3) 출고 3 (결제 성공)
+# @name ship_3
+POST {{InventoryBaseUrl}}/{{INV_ID}}/ship
+Content-Type: application/json
+
+{ "quantity": 3, "reason": "주문 A001 출고" }
+
+### 실패 케이스 모음: 4-1) 과다 할당 실패(가용 < 요청)
+# @name allocate_over_fail
+POST {{InventoryBaseUrl}}/{{INV_ID}}/allocate
+Content-Type: application/json
+
+{ "quantity": 999, "reason": "과다 요청" }
+
+### 4-2) 중복 초기화 시도(동일 productId+skuCode) → 409 기대
+# @name init_inventory_duplicate_fail
+POST {{InventoryBaseUrl}}
+Content-Type: application/json
+
+{
+  "productId": {{PRODUCT_ID}},
+  "skuCode": "SKU-INV-TSHIRT-0001",
+  "onHand": 0,
+  "safetyStock": 0,
+  "backorderable": false
+}
+
+### 4-3) 잘못된 수량(0 이하) → 400 기대
+# @name inbound_invalid_qty_fail
+POST {{InventoryBaseUrl}}/{{INV_ID}}/inbound
+Content-Type: application/json
+
+{ "quantity": 0, "reason": "유효하지 않은 수량" }
+
+### 5) 할당 해제(취소/만료)
+# @name deallocate_2
+POST {{InventoryBaseUrl}}/{{INV_ID}}/deallocate
+Content-Type: application/json
+
+{ "quantity": 2, "reason": "주문 취소 A002" }
+
+### 백오더 시나리오 (backorderable = true): 별도 상품/재고로 분리해서 검증. 가용 0이어도 할당이 허용되는지 확인.
+### 6-1) 상품 생성(간단)
+# @name create_product_backorder
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "백오더-테스트용 모자",
+  "content": "backorderable=true 시나리오",
+  "skuCode": "SKU-INV-HAT-0001",
+  "price": { "listPriceWon": 9900 },
+  "categories": []
+}
+
+> {% client.global.set("PRODUCT_ID_BACK", response.body.data.id); %}
+
+### 6-2) 재고 초기화(backorderable=true, onHand=0)
+# @name init_inventory_backorder
+POST {{InventoryBaseUrl}}
+Content-Type: application/json
+
+{
+  "productId": {{PRODUCT_ID_BACK}},
+  "skuCode": "SKU-INV-HAT-0001",
+  "onHand": 0,
+  "safetyStock": 0,
+  "backorderable": true
+}
+
+> {% client.global.set("INV_ID_BACK", response.body.data.id); %}
+
+### 6-3) 가용 0 상태에서 할당(성공 기대)
+# @name allocate_when_zero_backorder_success
+POST {{InventoryBaseUrl}}/{{INV_ID_BACK}}/allocate
+Content-Type: application/json
+
+{ "quantity": 5, "reason": "예약 주문" }
+
+### 7) 참고: 빠른 점검용 GET (선택): 조회용 API를 아직 안 만들었으면 생략. 만들었다면 아래처럼.
+# @name get_inventory
+GET {{InventoryBaseUrl}}/{{INV_ID}}
+
+### 단건 조회 (ID로)
+# @name get_inventory_by_id
+GET {{InventoryBaseUrl}}/{{INV_ID}}
+
+### 키 조회 (productId + skuCode)
+# @name get_inventory_by_key_both
+GET {{InventoryBaseUrl}}?productId={{PRODUCT_ID}}&skuCode=SKU-INV-TSHIRT-0001
+
+### 키 조회 (skuCode만)
+# @name get_inventory_by_sku
+GET {{InventoryBaseUrl}}?skuCode=SKU-INV-TSHIRT-0001
+
+### 키 조회 (productId만)
+# @name get_inventory_by_product
+GET {{InventoryBaseUrl}}?productId={{PRODUCT_ID}}

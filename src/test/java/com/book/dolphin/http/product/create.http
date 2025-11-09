@@ -1,0 +1,299 @@
+### 0) 공통 베이스 URL
+@baseUrl = http://localhost:10000/api/v1/categories
+
+### 1) 루트: 남성
+# @name create_men_root
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "남성",
+  "slug": "men",
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("MEN_ID", response.body.data.id); %}
+
+### 2) 루트: 여성
+# @name create_women_root
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "여성",
+  "slug": "women",
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("WOMEN_ID", response.body.data.id); %}
+
+
+### 3) 남성/상의 (parent = 남성)
+# @name create_men_top
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "상의",
+  "slug": "top",
+  "parentId": {{MEN_ID}},
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("MEN_TOP_ID", response.body.data.id); %}
+
+### 4) 남성/하의 (parent = 남성)
+# @name create_men_bottom
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "하의",
+  "slug": "bottom",
+  "parentId": {{MEN_ID}},
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("MEN_BOTTOM_ID", response.body.data.id); %}
+
+### 5) 남성/상의/셔츠 (parent = 남성/상의)
+# @name create_men_top_shirts
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "셔츠",
+  "slug": "shirts",
+  "parentId": {{MEN_TOP_ID}},
+  "status": "ACTIVE"
+}
+
+### 6) 남성/하의/청바지 (parent = 남성/하의)
+# @name create_men_bottom_jeans
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "청바지",
+  "slug": "jeans",
+  "parentId": {{MEN_BOTTOM_ID}},
+  "status": "ACTIVE"
+}
+
+
+### 7) 여성/상의 (parent = 여성)
+# @name create_women_top
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "상의",
+  "slug": "top",
+  "parentId": {{WOMEN_ID}},
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("WOMEN_TOP_ID", response.body.data.id); %}
+
+### 8) 여성/아우터 (parent = 여성)
+# @name create_women_outer
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "아우터",
+  "slug": "outer",
+  "parentId": {{WOMEN_ID}},
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("WOMEN_OUTER_ID", response.body.data.id); %}
+
+### 9) 여성/상의/셔츠 (parent = 여성/상의)
+# @name create_women_top_shirts
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "셔츠",
+  "slug": "shirts",
+  "parentId": {{WOMEN_TOP_ID}},
+  "status": "ACTIVE"
+}
+
+### 10) 여성/아우터/코트 (parent = 여성/아우터)
+# @name create_women_outer_coat
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "코트",
+  "slug": "coat",
+  "parentId": {{WOMEN_OUTER_ID}},
+  "status": "ACTIVE"
+}
+
+### 공통
+@ProductBaseUrl = http://localhost:10000/api/v1/products
+
+### 최소 필드로 상품 생성 (성공)
+# @name create_product_minimal
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "미니멀 티셔츠",
+  "content": "<p>기본 설명</p>",
+  "skuCode": "SKU-TSHIRT-0001",
+  "price": { "listPriceWon": 12900 },
+  "categories": [
+    { "categoryId": {{MEN_TOP_ID}}, "primary": true, "sortKey": 0 }
+  ]
+}
+
+### 상시가 + 기간 한정 세일가 포함 (성공)
+# @name create_product_with_sale
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "윈터 코트",
+  "content": "<h1>겨울용 코트</h1><p>보온성 우수</p>",
+  "skuCode": "SKU-COAT-2025-0001",
+  "price": {
+    "listPriceWon": 159000,
+    "salePriceWon": 129000,
+    "saleFrom": "2025-11-10T00:00:00",
+    "saleUntil": "2025-12-31T23:59:59"
+  },
+  "categories": [
+    { "categoryId": {{WOMEN_OUTER_ID}}, "primary": true, "sortKey": 0 }
+  ]
+}
+
+### 대표 이미지 포함 (성공, 최대 8장 중 5장 예시)
+# @name create_product_with_representatives
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "데님 팬츠",
+  "content": "<p>슬림 스트레이트 데님</p>",
+  "skuCode": "SKU-DENIM-0001",
+  "price": { "listPriceWon": 49900 },
+  "categories": [
+    { "categoryId": {{MEN_BOTTOM_ID}}, "primary": true, "sortKey": 0 }
+  ],
+  "representatives": [
+    { "url": "https://cdn.example.com/denim/rep1.jpg", "altText": "정면", "sortKey": 0 },
+    { "url": "https://cdn.example.com/denim/rep2.jpg", "altText": "측면", "sortKey": 1 },
+    { "url": "https://cdn.example.com/denim/rep3.jpg", "altText": "후면", "sortKey": 2 },
+    { "url": "https://cdn.example.com/denim/rep4.jpg", "altText": "원단", "sortKey": 3 },
+    { "url": "https://cdn.example.com/denim/rep5.jpg", "altText": "디테일", "sortKey": 4 }
+  ],
+  "contents": [
+    { "url": "https://cdn.example.com/denim/body1.jpg", "altText": "착용샷1", "sortKey": 0 }
+  ]
+}
+
+### 실패: 대표 카테고리 2개 지정 (REPRESENTATIVE_CATEGORY_ONLY_ONE)
+# @name create_product_fail_two_primary_categories
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "에러 테스트 - 두 대표",
+  "content": "대표 카테고리 2개",
+  "skuCode": "SKU-ERR-PRIM-0001",
+  "price": { "listPriceWon": 10000 },
+  "categories": [
+    { "categoryId": {{MEN_TOP_ID}}, "primary": true,  "sortKey": 0 },
+    { "categoryId": {{WOMEN_TOP_ID}}, "primary": true, "sortKey": 1 }
+  ]
+}
+
+### 실패: 대표 이미지 9장(최대 초과, REPRESENTATIVE_IMAGE_MAX_OVER)
+# @name create_product_fail_reps_over
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "에러 테스트 - 대표 9장",
+  "content": "대표 이미지 9장",
+  "skuCode": "SKU-ERR-IMG-0001",
+  "price": { "listPriceWon": 10000 },
+  "categories": [
+    { "categoryId": {{MEN_TOP_ID}}, "primary": true, "sortKey": 0 }
+  ],
+  "representatives": [
+    { "url": "https://cdn/img1.jpg", "altText": "1", "sortKey": 0 },
+    { "url": "https://cdn/img2.jpg", "altText": "2", "sortKey": 1 },
+    { "url": "https://cdn/img3.jpg", "altText": "3", "sortKey": 2 },
+    { "url": "https://cdn/img4.jpg", "altText": "4", "sortKey": 3 },
+    { "url": "https://cdn/img5.jpg", "altText": "5", "sortKey": 4 },
+    { "url": "https://cdn/img6.jpg", "altText": "6", "sortKey": 5 },
+    { "url": "https://cdn/img7.jpg", "altText": "7", "sortKey": 6 },
+    { "url": "https://cdn/img8.jpg", "altText": "8", "sortKey": 7 },
+    { "url": "https://cdn/img9.jpg", "altText": "9", "sortKey": 8 }
+  ]
+}
+
+### 실패: saleUntil < saleFrom (INVALID_SALE_PERIOD)
+# @name create_product_fail_bad_period
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "에러 테스트 - 기간 역전",
+  "content": "기간 검증",
+  "skuCode": "SKU-ERR-PERIOD-0001",
+  "price": {
+    "listPriceWon": 30000,
+    "salePriceWon": 25000,
+    "saleFrom": "2025-11-20T00:00:00",
+    "saleUntil": "2025-11-10T00:00:00"
+  },
+  "categories": [
+    { "categoryId": {{MEN_TOP_ID}}, "primary": true, "sortKey": 0 }
+  ]
+}
+
+### 실패: 세일가 ≥ 정가 (SALE_NOT_CHEAPER_THAN_LIST)
+# @name create_product_fail_sale_ge_list
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "에러 테스트 - 세일가>=정가",
+  "content": "가격 검증",
+  "skuCode": "SKU-ERR-PRICE-0001",
+  "price": {
+    "listPriceWon": 20000,
+    "salePriceWon": 20000,
+    "saleFrom": "2025-11-10T00:00:00",
+    "saleUntil": "2025-11-30T23:59:59"
+  },
+  "categories": [
+    { "categoryId": {{MEN_TOP_ID}}, "primary": true, "sortKey": 0 }
+  ]
+}
+
+### 실패: 잘못된 시간 형식 (INVALID_DATETIME_FORMAT)
+# @name create_product_fail_bad_datetime
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "에러 테스트 - 시간 형식",
+  "content": "LocalDateTime 파싱 실패",
+  "skuCode": "SKU-ERR-DATETIME-0001",
+  "price": {
+    "listPriceWon": 30000,
+    "salePriceWon": 25000,
+    "saleFrom": "2025-11-10 00:00:00",
+    "saleUntil": "2025/12/31 23:59:59"
+  },
+  "categories": [
+    { "categoryId": {{MEN_TOP_ID}}, "primary": true, "sortKey": 0 }
+  ]
+}
