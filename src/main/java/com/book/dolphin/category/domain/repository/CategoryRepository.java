@@ -124,5 +124,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
             """)
     boolean existsByPathOtherThan(String newPath, String oldPath);
 
-
+    @Modifying
+    @Query("delete from Category c where c.id in :ids")
+    int deleteAllByIdsIn(List<Long> ids);
 }
