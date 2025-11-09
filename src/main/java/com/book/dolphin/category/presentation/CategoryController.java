@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -96,12 +97,21 @@ public class CategoryController {
             @PathVariable Long id,
             @RequestBody @Valid MoveCategoryRequest request
     ) {
-            MoveCategoryResponse move = categoryService.move(id, request.newParentId());
+        MoveCategoryResponse move = categoryService.move(id, request.newParentId());
         return ResponseEntity.ok(new ApiResponse<>(ResultCode.SUCCESS, null, move));
     }
 
-    // 슬러그 수정
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Integer>> deleteCategory(
+            @PathVariable Long id
+    ) {
+        int i = categoryService.hardDeleteSubtree(id);
+
+        return ResponseEntity.ok(new ApiResponse<>(ResultCode.SUCCESS, null, i));
+    }
+
+    // 슬러그 수정(TODO)
     // 재정렬(TODO)
     // 상태전환(TODO)
-
+    // 소프트 삭제(TODO)
 }

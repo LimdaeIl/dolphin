@@ -23,6 +23,7 @@ import com.book.dolphin.category.domain.repository.CategoryClosureRepository;
 import com.book.dolphin.category.domain.repository.CategoryRepository;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -459,6 +460,99 @@ public class CategoryService {
                 node.getDepth(),  // 이동 후 최신 depth
                 breadcrumb        // 루트 -> 현재까지
         );
+    }
+
+    /**
+     * 서브트리 하드 삭제(자기 자신 포함).
+     *
+     * <p>삭제 단계</p>
+     * <ol>
+     *   <li><b>대상 존재 확인</b>: id가 유효한지 확인합니다. 없으면 CategoryException을 던집니다.</li>
+     *   <li><b>서브트리 ID 수집</b>: 클로저 테이블을 통해 (조상=id)인 모든 descendant id를 가져옵니다.</li>
+     *   <li><b>연관 데이터 검증/정리(선택)</b>:
+     *       상품-카테고리 매핑 등 참조가 존재하면 정책에 따라 차단(BLOCK)하거나,
+     *       대체 카테고리로 이관(REASSIGN)/매핑 제거(DETACH)를 수행합니다.
+     *       해당 로직은 validateOrDetachAssociations(...)에서 구현합니다.</li>
+     *   <li><b>클로저 링크 일괄 삭제</b>:
+     *       서브트리 내부 링크와 외부-내부/내부-외부 링크를 모두 제거합니다.</li>
+     *   <li><b>카테고리 일괄 삭제</b>:
+     *       수집한 id 목록을 배치로 나눠 IN 삭제합니다(대형 서브트리 대응).</li>
+     * </ol>
+     *
+     * <p>트랜잭션:</p>
+     * 본 메서드는 트랜잭션 안에서 실행되어야 하며, 실패 시 전체 롤백됩니다.
+     *
+     * @param id 서브트리 루트가 될 카테고리 ID
+     * @return 삭제된 카테고리 행 수(클로저 링크 삭제 수는 포함하지 않음)
+     * @throws CategoryException CATEGORY_NOT_FOUND 등 정책 위반 시
+     */
+    @Transactional
+    public int hardDeleteSubtree(Long id) {
+        // 0) 대상 확인
+        categoryRepository.findById(id)
+                .orElseThrow(() -> new CategoryException(CategoryErrorCode.CATEGORY_NOT_FOUND, id));
+
+        // 1) 서브트리 (id, depth) 내림차순 조회  ex) [(shirts,3), (top,2), (men,1)]
+        List<Object[]> rows = categoryClosureRepository.findSubtreeIdWithDepthDesc(id);
+        if (rows.isEmpty()) {
+            return 0;
+        }
+
+        // ids만 모아 클로저 링크부터 제거 (안전)
+        List<Long> allIds = rows.stream().map(r -> (Long) r[0]).toList();
+        categoryClosureRepository.deleteAllTouchingIds(allIds);
+
+        // 2) depth별로 묶어서 "자식 depth → 부모 depth" 순으로 각 depth를 개별 DELETE 실행
+        Map<Integer, List<Long>> byDepthDesc = new LinkedHashMap<>();
+        for (Object[] r : rows) {
+            Long cId = (Long) r[0];
+            Integer depth = ((Number) r[1]).intValue();
+            byDepthDesc.computeIfAbsent(depth, k -> new ArrayList<>()).add(cId);
+        }
+
+        int totalDeleted = 0;
+        for (Map.Entry<Integer, List<Long>> e : byDepthDesc.entrySet()) {
+            List<Long> idsAtDepth = e.getValue();
+            // 필요 시 대형 트리 대비 배치 분할
+            for (List<Long> batch : batches(idsAtDepth, 800)) {
+                totalDeleted += categoryRepository.deleteAllByIdsIn(batch);
+            }
+        }
+
+        return totalDeleted;
+    }
+
+    /**
+     * 대량 IN 삭제 시 DB 제한과 성능을 고려해 리스트를 적절한 크기로 나눕니다.
+     *
+     * @param src  원본 리스트
+     * @param size 배치 크기(예: 500~1000)
+     * @return 분할된 서브리스트 목록 (뷰이므로 호출자가 수정하지 않도록 주의)
+     */
+    private static <T> List<List<T>> batches(List<T> src, int size) {
+        List<List<T>> out = new ArrayList<>();
+        for (int i = 0; i < src.size(); i += size) {
+            out.add(src.subList(i, Math.min(i + size, src.size())));
+        }
+        return out;
+    }
+
+    /**
+     * 연관(상품·배너·프로모션 등) 존재 시의 처리 정책을 캡슐화합니다.
+     *
+     * <p>예시 정책:</p>
+     * <ul>
+     *   <li>BLOCK: 참조 개수가 0이 아니면 예외(CategoryErrorCode.CATEGORY_IN_USE)를 던져 삭제 차단</li>
+     *   <li>REASSIGN: 대체 카테고리로 일괄 이관(파라미터 필요)</li>
+     *   <li>DETACH: 매핑만 제거(권장하지 않음)</li>
+     * </ul>
+     *
+     * <p>운영 환경에 맞는 구현으로 교체하세요.</p>
+     */
+    private void validateOrDetachAssociations(List<Long> categoryIds) {
+        // long cnt = productCategoryRepository.countByCategoryIdIn(categoryIds);
+        // if (cnt > 0) throw new CategoryException(CategoryErrorCode.CATEGORY_IN_USE);
+        // 또는 productCategoryRepository.bulkReassign(categoryIds, newCategoryId);
     }
 }
 

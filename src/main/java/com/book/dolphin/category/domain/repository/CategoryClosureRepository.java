@@ -35,4 +35,39 @@ public interface CategoryClosureRepository extends
         order by cc.depth asc
     """)
     List<Object[]> findAncestorsWithDepth(Long descId);
+
+    // ancestor 기준 서브트리 모든 노드의 ID (자기 자신 포함)
+    @Query("""
+        select cc.descendant.id
+        from CategoryClosure cc
+        where cc.ancestor.id = :ancestorId
+        order by cc.depth asc
+    """)
+    List<Long> findSubtreeIds(Long ancestorId);
+
+    @Query("""
+        select cc.descendant.id
+        from CategoryClosure cc
+        where cc.ancestor.id = :ancestorId
+        order by cc.depth desc
+    """)
+    List<Long> findSubtreeIdsOrderByDepthDesc(Long ancestorId);
+
+    // 서브트리 id + depth (자식이 더 큰 depth). ancestor 기준 단일행이라 depth는 고유
+    @Query("""
+        select cc.descendant.id as id, cc.depth as depth
+        from CategoryClosure cc
+        where cc.ancestor.id = :ancestorId
+        order by cc.depth desc
+    """)
+    List<Object[]> findSubtreeIdWithDepthDesc(Long ancestorId);
+
+    // 서브트리와 '맞닿은' 모든 클로저 링크 제거 (내부 링크 + 외부 -> 내부 링크 + 내부 -> 외부 링크 전부)
+    @Modifying
+    @Query("""
+        delete from CategoryClosure cc
+        where cc.ancestor.id in :ids
+           or cc.descendant.id in :ids
+    """)
+    int deleteAllTouchingIds(List<Long> ids);
 }

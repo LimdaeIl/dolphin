@@ -1,0 +1,163 @@
+### 0) 공통 베이스 URL
+@baseUrl = http://localhost:10000/api/v1/categories
+
+### 1) 루트: 남성
+# @name create_men_root
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "남성",
+  "slug": "men"
+}
+
+> {% client.global.set("MEN_ID", response.body.data.id); %}
+
+### 2) 루트: 여성
+# @name create_women_root
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "여성",
+  "slug": "women"
+}
+
+> {% client.global.set("WOMEN_ID", response.body.data.id); %}
+
+
+### 3) 남성/상의 (parent = 남성)
+# @name create_men_top
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "상의",
+  "slug": "top",
+  "parentId": {{MEN_ID}}
+}
+
+> {% client.global.set("MEN_TOP_ID", response.body.data.id); %}
+
+### 4) 남성/하의 (parent = 남성)
+# @name create_men_bottom
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "하의",
+  "slug": "bottom",
+  "parentId": {{MEN_ID}}
+}
+
+> {% client.global.set("MEN_BOTTOM_ID", response.body.data.id); %}
+
+### 5) 남성/상의/셔츠 (parent = 남성/상의)
+# @name create_men_top_shirts
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "셔츠",
+  "slug": "shirts",
+  "parentId": {{MEN_TOP_ID}}
+}
+
+> {% client.global.set("MEN_TOP_SHIRTS_ID", response.body.data.id); %}
+
+
+### 6) 남성/하의/청바지 (parent = 남성/하의)
+# @name create_men_bottom_jeans
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "청바지",
+  "slug": "jeans",
+  "parentId": {{MEN_BOTTOM_ID}}
+}
+
+> {% client.global.set("MEN_BOTTOM_JEANS_ID", response.body.data.id); %}
+
+
+
+### 7) 여성/상의 (parent = 여성)
+# @name create_women_top
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "상의",
+  "slug": "top",
+  "parentId": {{WOMEN_ID}}
+}
+
+> {% client.global.set("WOMEN_TOP_ID", response.body.data.id); %}
+
+### 8) 여성/아우터 (parent = 여성)
+# @name create_women_outer
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "아우터",
+  "slug": "outer",
+  "parentId": {{WOMEN_ID}}
+}
+
+> {% client.global.set("WOMEN_OUTER_ID", response.body.data.id); %}
+
+### 9) 여성/상의/셔츠 (parent = 여성/상의)
+# @name create_women_top_shirts
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "셔츠",
+  "slug": "shirts",
+  "parentId": {{WOMEN_TOP_ID}}
+}
+
+> {% client.global.set("WOMEN_TOP_SHIRTS_ID", response.body.data.id); %}
+
+
+
+### 10) 여성/아우터/코트 (parent = 여성/아우터)
+# @name create_women_outer_coat
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "코트",
+  "slug": "coat",
+  "parentId": {{WOMEN_OUTER_ID}}
+}
+
+> {% client.global.set("WOMEN_OUTER_COAT_ID", response.body.data.id); %}
+
+
+### A-1) [리프 삭제] 남성/하의/청바지 삭제 (자기 자신만 삭제)
+# 기대: 1건 삭제 (카테고리 1행), 클로저 링크는 서비스 내부에서 먼저 삭제됨
+# @name delete_leaf_men_bottom_jeans
+DELETE {{baseUrl}}/{{MEN_BOTTOM_JEANS_ID}}
+
+### B-1) [중간 노드=서브트리 하드 삭제] 남성/상의 삭제
+# 기대: 남성/상의 + (남성/상의/셔츠) 모두 삭제
+# @name delete_subtree_men_top
+DELETE {{baseUrl}}/{{MEN_TOP_ID}}
+
+### C-1) [루트=대트리 하드 삭제] 여성 루트 삭제
+# 기대: 여성 하위 전체(상의/셔츠, 아우터/코트 등) 삭제
+# @name delete_subtree_women_root
+DELETE {{baseUrl}}/{{WOMEN_ID}}
+
+### D-1) [에러 케이스] 존재하지 않는 ID 삭제
+# 기대: CATEGORY_NOT_FOUND (예외 핸들러에 따라 404/400)
+# @name delete_nonexistent_id
+DELETE {{baseUrl}}/999999999
+
+### E-1) [정책 케이스] 상품 연결된 카테고리 삭제 시도
+# 현재 validateOrDetachAssociations() 비활성화 시 실제로 삭제될 수 있음.
+# 정책 적용 시 해당 메서드에서 예외를 던져 차단하거나, 이관을 수행하세요.
+# @name delete_category_with_products
+DELETE {{baseUrl}}/{{MEN_TOP_ID}}
