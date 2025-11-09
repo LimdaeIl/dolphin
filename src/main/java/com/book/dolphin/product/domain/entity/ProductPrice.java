@@ -96,12 +96,9 @@ public class ProductPrice {
         }
         LocalDateTime s = validFrom, e = validUntil;
         // 열린구간 포함 간단 판정
-        if (s == null || r.until() == null) {
-            return true;
+        if (s != null && r.until() != null && s.isAfter(r.until())) {
+            return false;
         }
-        if (e == null || r.from() == null) {
-            return true;
-        }
-        return !e.isBefore(r.from()) && !s.isAfter(r.until());
+        return e == null || r.from() == null || !e.isBefore(r.from());
     }
 }

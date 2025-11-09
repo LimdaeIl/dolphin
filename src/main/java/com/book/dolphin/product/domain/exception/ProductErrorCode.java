@@ -20,8 +20,8 @@ public enum ProductErrorCode implements ErrorCode {
     PRICE_REQUIRED(HttpStatus.BAD_REQUEST, "가격 정보는 필수입니다."),
     INVALID_DATETIME_FORMAT(HttpStatus.BAD_REQUEST, "지원하지 않는 시간 형식입니다. 예: 2025-11-10T00:00:00"),
     NOT_FOUND_INVENTORY(HttpStatus.NOT_FOUND, "재고를 찾을 수 없습니다: %s"),
-    NOT_FOUND_PRODUCT(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다."), ALREADY_EXISTS_INVENTORY(
-            HttpStatus.BAD_REQUEST,
+    NOT_FOUND_PRODUCT(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다."),
+    ALREADY_EXISTS_INVENTORY(HttpStatus.CONFLICT,
             "이미 존재하는 재고입니다. productId=%s, sku=%s"),
     INVENTORY_OUT_OF_STOCK(HttpStatus.BAD_REQUEST, "재고가 부족하여 할당할 수 없습니다. 요청 수량: %s"),
     INCORRECT_DEALLOCATION_QUANTITY(HttpStatus.BAD_REQUEST, "잘못된 할당 해제 수량입니다. 할당 해제 수량: %s"),

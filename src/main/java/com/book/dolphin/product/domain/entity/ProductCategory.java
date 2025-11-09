@@ -27,7 +27,6 @@ import lombok.NoArgsConstructor;
         },
         indexes = {
                 @Index(name = "idx_pc_category_sort", columnList = "category_id, sort_key, product_id"),
-                @Index(name = "idx_pc_product", columnList = "product_id")
         }
 )
 @Entity

@@ -40,4 +40,21 @@ public class Money {
             throw new IllegalArgumentException("화폐 단위가 다릅니다.");
         }
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Money money)) {
+            return false;
+        }
+        return Objects.equals(amount, money.amount)
+                && Objects.equals(currency, money.currency);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(amount, currency);
+    }
 }

@@ -22,6 +22,8 @@ import com.book.dolphin.product.domain.exception.ProductException;
 import com.book.dolphin.product.domain.repository.ProductRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -216,9 +218,13 @@ public class ProductService {
         }
         try {
             // 기본 ISO_LOCAL_DATE_TIME: 2025-11-10T00:00:00
-            return LocalDateTime.parse(iso);
-        } catch (Exception e) {
-            throw new ProductException(ProductErrorCode.INVALID_DATETIME_FORMAT, iso);
+            return OffsetDateTime.parse(iso).toLocalDateTime();
+        } catch (DateTimeParseException offsetException) {
+            try {
+                return LocalDateTime.parse(iso);
+            } catch (DateTimeParseException localException) {
+                throw new ProductException(ProductErrorCode.INVALID_DATETIME_FORMAT, iso);
+            }
         }
     }
 

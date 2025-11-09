@@ -133,10 +133,6 @@ Content-Type: application/json
 # @name get_inventory
 GET {{InventoryBaseUrl}}/{{INV_ID}}
 
-### 단건 조회 (ID로)
-# @name get_inventory_by_id
-GET {{InventoryBaseUrl}}/{{INV_ID}}
-
 ### 키 조회 (productId + skuCode)
 # @name get_inventory_by_key_both
 GET {{InventoryBaseUrl}}?productId={{PRODUCT_ID}}&skuCode=SKU-INV-TSHIRT-0001
