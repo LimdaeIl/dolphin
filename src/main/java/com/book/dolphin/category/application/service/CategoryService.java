@@ -365,9 +365,8 @@ public class CategoryService {
             throw new CategoryException(CategoryErrorCode.ALREADY_PATH, newPrefix);
         }
 
-        // 5) 서브트리 로딩 (node 포함, 깊이 오름차순)
-        //    - path prefix 기반이 단순/빠름
-        List<Category> subtree = categoryRepository.findSubtreeDescendantsByPath(oldPrefix);
+        // 5) 서브트리 로딩 (node 포함, 깊이 오름차순) - 클로저 테이블 기반
+        List<Category> subtree = categoryRepository.findSubtreeDescendants(id);
 
         // 6) 부모/깊이/path 재계산
         //    - node.setParentUnsafe(newParent)
@@ -435,12 +434,12 @@ public class CategoryService {
             int depthAncToNewParent = ((Number) row[1]).intValue(); // ancestor→newParent
             for (Category d : subtree) {
                 int offset = d.getDepth() - (newParentBaseDepth + 1);
-                insertLinks.add(CategoryClosure.create(ancestor, d, depthAncToNewParent + 1 + offset));
+                insertLinks.add(
+                        CategoryClosure.create(ancestor, d, depthAncToNewParent + 1 + offset));
             }
         }
 
         categoryClosureRepository.saveAll(insertLinks);
-
 
         // 8) 응답 조립
         Long newParentIdOrNull = (newParent == null) ? null : newParent.getId();

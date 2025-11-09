@@ -24,7 +24,7 @@ public enum CategoryErrorCode implements ErrorCode {
             "카테고리: 자신의 하위로 이동할 수 없습니다: id=%s, newParentId=%s"),
     INVALID_REPARENT_SELF(HttpStatus.BAD_REQUEST, "카테고리: 부모를 자기 자신으로 설정할 수 없습니다."),
     DEPTH_GREATER_OR_EQUAL_ZERO(HttpStatus.BAD_REQUEST, "카테고리: depth는 0 이상이어야 합니다."),
-    PATH_NOT_NULL(HttpStatus.BAD_REQUEST, "카테고라: 경로는 비어 있을 수 없습니다."),
+    PATH_NOT_NULL(HttpStatus.BAD_REQUEST, "카테고리: 경로는 비어 있을 수 없습니다."),
     PATH_LENGTH_MAX_OVER(HttpStatus.BAD_REQUEST, "카테고리: 경로 최대 길이를 초과했습니다."), SUB_TREE_INCONSISTENCY(
             HttpStatus.BAD_REQUEST, "카테고리: 서브 트리가 일치하지 않습니다: %s");
 
