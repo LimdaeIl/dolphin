@@ -1,5 +1,7 @@
 package com.book.dolphin.category.domain.entity;
 
+import com.book.dolphin.category.domain.exception.CategoryErrorCode;
+import com.book.dolphin.category.domain.exception.CategoryException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -150,6 +152,84 @@ public class Category {
                 .depth(parent.getDepth() + 1)
                 .imageUrl(imageUrl)
                 .build();
+    }
+
+    public void changeName(String newName) {
+        if (newName == null) {
+            return;
+        }
+        String value = newName.trim();
+        if (value.isEmpty()) {
+            throw new CategoryException(CategoryErrorCode.NAME_NOT_NULL);
+        }
+        this.name = value;
+    }
+
+    public void changeImageUrl(String newImageUrl) {
+        if (newImageUrl == null) {
+            return;
+        }
+        String value = newImageUrl.trim();
+        this.imageUrl = value.isEmpty() ? null : value; // 빈 문자열이면 '삭제'로 간주
+    }
+
+    public void changeSortOrder(Integer newSortOrder) {
+        if (newSortOrder == null) {
+            return;
+        }
+        if (newSortOrder < 0) {
+            throw new CategoryException(CategoryErrorCode.SORT_ORDER_GREATER_OR_EQUAL_ZERO);
+        }
+        this.sortOrder = newSortOrder;
+    }
+
+    public void changeStatus(CategoryStatus newStatus) {
+        if (newStatus == null) {
+            return;
+        }
+        this.status = newStatus;
+    }
+
+    /**
+     * INTERNAL: move() 과정에서만 사용. null 허용(루트 승격).
+     * JPA dirty-checking을 위해 단순 대입만 하면 충분.
+     */
+    public void setParentUnsafe(Category newParent) {
+        // 자기 자신을 부모로 설정하는 실수 방지 정도만 가드
+        if (newParent == this) {
+            throw new CategoryException(
+                   CategoryErrorCode.INVALID_REPARENT_SELF);
+        }
+        this.parent = newParent; // null이면 루트
+    }
+
+    /**
+     * INTERNAL: 서브트리 재배치 시 깊이 재계산에 사용.
+     */
+    public void setDepthUnsafe(int newDepth) {
+        if (newDepth < 0) {
+            throw new CategoryException(CategoryErrorCode.DEPTH_GREATER_OR_EQUAL_ZERO);
+        }
+        this.depth = newDepth;
+    }
+
+    /**
+     * INTERNAL: 서브트리 경로 치환에 사용.
+     * 서비스 레벨에서 전역 유니크(path) 검증을 끝내고 들어온 값만 대입합니다.
+     */
+    public void setPathUnsafe(String newPath) {
+        if (newPath == null || newPath.isBlank()) {
+            throw new CategoryException(CategoryErrorCode.PATH_NOT_NULL);
+        }
+        // 일관성: 항상 슬래시로 시작
+        if (!newPath.startsWith("/")) {
+            newPath = "/" + newPath;
+        }
+        // 컬럼 제약과 맞추기(1024)
+        if (newPath.length() > 1024) {
+            throw new CategoryException(CategoryErrorCode.PATH_LENGTH_MAX_OVER);
+        }
+        this.path = newPath;
     }
 }
 

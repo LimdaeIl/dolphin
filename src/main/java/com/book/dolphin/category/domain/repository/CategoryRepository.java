@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
@@ -61,8 +62,9 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
                 select cc.ancestor
                 from CategoryClosure cc
                 where cc.descendant.id = :descId
+                  and cc.depth > 0
                   and (:activeOnly = false or cc.ancestor.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
-                order by cc.depth asc
+                order by cc.depth desc
             """)
     List<Category> findBreadcrumbAncestors(Long descId, boolean activeOnly);
 
@@ -72,5 +74,55 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
                   and (:activeOnly = false or c.status = com.book.dolphin.category.domain.entity.CategoryStatus.ACTIVE)
             """)
     Optional<Category> findOneForDetail(Long id, boolean activeOnly);
+
+    @Query("""
+        select cc.descendant
+        from CategoryClosure cc
+        where cc.ancestor.id = :ancestorId
+        order by cc.depth asc
+    """)
+    List<Category> findSubtreeDescendants(Long ancestorId);
+
+    @Query("""
+        select c
+        from Category c
+        where c.path = :rootPath
+           or c.path like concat(:rootPath, '/%')
+        order by c.depth asc
+    """)
+    List<Category> findSubtreeDescendantsByPath(String rootPath);
+
+    @Query("""
+        select max(cc.depth)
+        from CategoryClosure cc
+        where cc.ancestor.id = :ancestorId
+    """)
+    Integer findMaxDepthOffsetInSubtree(Long ancestorId); // null → leaf
+
+
+    @Query("""
+        select cc.ancestor
+        from CategoryClosure cc
+        where cc.descendant.id = :descId
+        order by cc.depth asc
+    """)
+    List<Category> findAllAncestors(Long descId);
+
+    @Modifying
+    @Query("""
+        delete from CategoryClosure cc
+        where cc.descendant.id in :subtreeIds
+          and cc.ancestor.id not in :subtreeIds
+    """)
+    int deleteLinksOutsideSubtree(List<Long> subtreeIds);
+
+    @Query("""
+            select count(c) > 0
+            from Category c
+            where c.path = :newPath
+            and (c.path <> :oldPath)
+            """)
+    boolean existsByPathOtherThan(String newPath, String oldPath);
+
 
 }
