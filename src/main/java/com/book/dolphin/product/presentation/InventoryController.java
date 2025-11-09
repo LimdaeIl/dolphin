@@ -30,8 +30,7 @@ public class InventoryController {
             @Valid @RequestBody InitInventoryRequest request
     ) {
         InventoryResponse response = inventoryService.init(
-                request.skuCode(),
-                request.productId(),
+                request.variantId(),
                 request.onHand(),
                 request.safetyStock(),
                 request.backorderable()

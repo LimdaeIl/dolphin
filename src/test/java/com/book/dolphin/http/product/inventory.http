@@ -12,7 +12,6 @@ Content-Type: application/json
 {
   "name": "인벤토리-테스트용 티셔츠",
   "content": "<p>인벤토리 테스트</p>",
-  "skuCode": "SKU-INV-TSHIRT-0001",
   "price": { "listPriceWon": 12900 },
   "categories": []
 }
@@ -26,7 +25,6 @@ Content-Type: application/json
 
 {
   "productId": {{PRODUCT_ID}},
-  "skuCode": "SKU-INV-TSHIRT-0001",
   "onHand": 0,
   "safetyStock": 0,
   "backorderable": false
@@ -64,14 +62,13 @@ Content-Type: application/json
 
 { "quantity": 999, "reason": "과다 요청" }
 
-### 4-2) 중복 초기화 시도(동일 productId+skuCode) → 409 기대
+### 4-2) 중복 초기화 시도(동일 productId) → 409 기대
 # @name init_inventory_duplicate_fail
 POST {{InventoryBaseUrl}}
 Content-Type: application/json
 
 {
   "productId": {{PRODUCT_ID}},
-  "skuCode": "SKU-INV-TSHIRT-0001",
   "onHand": 0,
   "safetyStock": 0,
   "backorderable": false
@@ -100,7 +97,6 @@ Content-Type: application/json
 {
   "name": "백오더-테스트용 모자",
   "content": "backorderable=true 시나리오",
-  "skuCode": "SKU-INV-HAT-0001",
   "price": { "listPriceWon": 9900 },
   "categories": []
 }
@@ -114,7 +110,6 @@ Content-Type: application/json
 
 {
   "productId": {{PRODUCT_ID_BACK}},
-  "skuCode": "SKU-INV-HAT-0001",
   "onHand": 0,
   "safetyStock": 0,
   "backorderable": true

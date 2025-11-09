@@ -7,7 +7,6 @@ import com.book.dolphin.product.domain.exception.ProductErrorCode;
 import com.book.dolphin.product.domain.exception.ProductException;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -55,12 +54,15 @@ public class Product {
     @Comment("상세 본문(마크다운/HTML 허용)")
     private String content;
 
-    @Embedded
-    private Sku sku;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "product_status", nullable = false, length = 30)
     private ProductStatus productStatus = ProductStatus.DRAFT;
+
+    /**
+     * 배리언트
+     */
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final List<ProductVariant> variants = new ArrayList<>();
 
     /**
      * 카테고리 연결(정렬/대표 여부를 포함)
@@ -81,10 +83,9 @@ public class Product {
     private final List<ProductPrice> prices = new ArrayList<>();
 
     @Builder
-    private Product(String name, String content, Sku sku) {
+    private Product(String name, String content) {
         this.name = Objects.requireNonNull(name);
         this.content = Objects.requireNonNullElse(content, "");
-        this.sku = Objects.requireNonNull(sku);
     }
 
     // 카테고리 연결

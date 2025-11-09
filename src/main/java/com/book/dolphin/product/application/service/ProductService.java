@@ -16,7 +16,6 @@ import com.book.dolphin.product.domain.entity.Money;
 import com.book.dolphin.product.domain.entity.Product;
 import com.book.dolphin.product.domain.entity.ProductCategory;
 import com.book.dolphin.product.domain.entity.ProductMedia;
-import com.book.dolphin.product.domain.entity.Sku;
 import com.book.dolphin.product.domain.exception.ProductErrorCode;
 import com.book.dolphin.product.domain.exception.ProductException;
 import com.book.dolphin.product.domain.repository.ProductRepository;
@@ -43,26 +42,25 @@ public class ProductService {
 
     @Transactional
     public ProductResponse create(ProductCreateRequest request) {
-        // 1) Product 생성
+        // 1) Product 생성 (sku 제거)
         Product product = Product.builder()
                 .name(request.name())
                 .content(request.content())
-                .sku(new Sku(request.skuCode()))
                 .build();
 
-        // 2) 가격(상시가 + 선택: 할인가)
+        // 2) 가격
         applyPrice(product, request);
 
-        // 3) 카테고리 연결(검증 포함)
+        // 3) 카테고리 연결
         attachCategories(product, request.categories());
 
-        // 4~5) 이미지(대표/본문) 검증 + 추가
+        // 4~5) 이미지
         attachMedia(product, request.representatives(), request.contents());
 
         // 6) 저장
         Product saved = productRepository.save(product);
 
-        // 7) 응답 DTO
+        // 7) 응답
         return toResponse(saved);
     }
 
@@ -139,18 +137,18 @@ public class ProductService {
 
     private ProductResponse toResponse(Product p) {
         Long currentWon = p.currentPrice()
-                .map(m -> m.getAmount().longValue()) // KRW 정수 가정
+                .map(m -> m.getAmount().longValue())
                 .orElse(null);
 
-        // 정렬 기준은 화면 요구에 맞게 명시 (OrderBy 제거했으므로)
         List<CategoryBrief> categories = p.getCategories().stream()
                 .sorted(Comparator.comparingInt(ProductCategory::getSortKey))
                 .map(pc -> new CategoryBrief(
                         pc.getCategory().getId(),
-                        pc.getCategory().getName(), // Category에 name 필드가 있다고 가정
+                        pc.getCategory().getName(),
                         pc.isPrimary(),
                         pc.getSortKey()
-                )).collect(Collectors.toList());
+                ))
+                .toList();
 
         List<MediaBrief> reps = p.getMediaList().stream()
                 .filter(m -> m.getType() == MediaType.REPRESENTATIVE)
@@ -168,7 +166,6 @@ public class ProductService {
                 p.getId(),
                 p.getName(),
                 p.getContent(),
-                p.getSku().getCode(),
                 p.getProductStatus().name(),
                 currentWon,
                 categories,

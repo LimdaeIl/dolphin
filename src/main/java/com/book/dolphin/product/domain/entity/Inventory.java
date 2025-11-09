@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
@@ -17,16 +18,20 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "inventories",
-        uniqueConstraints = @UniqueConstraint(name = "uk_inventory_product_sku", columnNames = {
-                "product_id", "sku_code"}))
 @Entity
+@Table(name = "inventories",
+        indexes = {
+                @Index(name = "idx_inventory_sku", columnList = "sku_code")
+        },
+        uniqueConstraints = @UniqueConstraint(name = "uk_inventory_variant", columnNames = "variant_id")
+)
 public class Inventory {
 
     @Id
@@ -34,27 +39,34 @@ public class Inventory {
     @Column(name = "inventory_id")
     private Long id;
 
+    /**
+     * 재고는 변형(Variant) 단위
+     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    @JoinColumn(name = "variant_id", nullable = false)
+    private ProductVariant variant;
 
-    @Column(name = "sku_code", nullable = false, length = 64)
+    /**
+     * 운영/조회 편의를 위한 디노말라이즈된 SKU 사본(선택) - 유지하려면 생성 시 variant.getSkuCode()로 세팅 - 굳이 보관하지 않을 거면 이 필드
+     * 제거해도 됨
+     */
+    @Column(name = "sku_code", length = 64, nullable = false)
     private String skuCode;
 
     @Column(name = "on_hand", nullable = false)
-    private long onHand;       // 입고/조정으로 증가·감소
+    private long onHand;
 
     @Column(name = "allocated", nullable = false)
-    private long allocated;    // 주문확정 전 임시 할당 수량
+    private long allocated;
 
     @Column(name = "safety_stock", nullable = false)
-    private long safetyStock;  // 최소 유지 수량(가용 계산에 반영)
+    private long safetyStock;
 
     @Column(name = "backorderable", nullable = false)
-    private boolean backorderable; // 품절 시 주문 허용 여부
+    private boolean backorderable;
 
     @Version
-    private long version;      // 낙관적 락
+    private long version;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
@@ -65,11 +77,16 @@ public class Inventory {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public static Inventory of(Product product, String skuCode,
-            long onHand, long safetyStock, boolean backorderable) {
+    /**
+     * 팩토리
+     */
+    public static Inventory of(ProductVariant variant,
+            long onHand,
+            long safetyStock,
+            boolean backorderable) {
         Inventory inv = new Inventory();
-        inv.product = product;
-        inv.skuCode = skuCode;
+        inv.variant = Objects.requireNonNull(variant);
+        inv.skuCode = variant.getSkuCode();       // 캐싱
         inv.onHand = onHand;
         inv.allocated = 0L;
         inv.safetyStock = safetyStock;
@@ -77,7 +94,7 @@ public class Inventory {
         return inv;
     }
 
-    // ---- 도메인 로직 ----
+    // ===== 도메인 로직 =====
     public long available() {
         long avail = onHand - allocated - safetyStock;
         return Math.max(avail, 0L);
@@ -116,8 +133,9 @@ public class Inventory {
 
     public void decreaseOnHand(long qty) {
         if (qty <= 0 || qty > onHand) {
-            throw new ProductException(ProductErrorCode.DEDUCT_MORE_THEN_AMOUNT, qty);
+            throw new ProductException(ProductErrorCode.DEDUCT_MORE_THAN_AMOUNT, qty);
         }
         this.onHand -= qty;
     }
 }
+

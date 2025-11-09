@@ -15,9 +15,6 @@ public record ProductCreateRequest(
         @NotBlank // 본문(마크다운/HTML 허용)
         String content,
 
-        @NotBlank @Size(max = 64)
-        String skuCode,
-
         @Valid @NotNull
         PricePayload price,                // 상시가 + (선택)할인가
 
@@ -46,18 +43,24 @@ public record ProductCreateRequest(
     }
 
     public record CategoryAssign(
-            @NotNull Long categoryId,
-            boolean primary,
-            @Min(0) int sortKey
+            @NotNull Long
+            categoryId,
+            boolean
+            primary,
+            @Min(0)
+            int sortKey
     ) {
 
     }
 
     public record MediaPayload(
             @NotBlank
-            @Size(max = 1024) String url,
-            @Size(max = 255) String altText,
-            @Min(0) int sortKey
+            @Size(max = 1024)
+            String url,
+            @Size(max = 255)
+            String altText,
+            @Min(0) int
+            sortKey
     ) {
 
     }

@@ -1,0 +1,61 @@
+### 공통
+@ProductBaseUrl = http://localhost:10000/api/v1/products
+@VariantBase = http://localhost:10000/api/v1/variants
+@baseUrl = http://localhost:10000/api/v1/categories
+
+### 3) 남성 (parent = null)
+# @name create_men_top
+POST {{baseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "남성",
+  "slug": "men",
+  "status": "ACTIVE"
+}
+
+> {% client.global.set("MEN_TOP_ID", response.body.data.id); %}
+
+### 최소 필드로 상품 생성 (성공)
+# @name create_product_minimal
+POST {{ProductBaseUrl}}/create
+Content-Type: application/json
+
+{
+  "name": "미니멀 티셔츠",
+  "content": "<p>기본 설명</p>",
+  "skuCode": "SKU-TSHIRT-0001",
+  "price": { "listPriceWon": 12900 },
+  "categories": [
+    { "categoryId": {{MEN_TOP_ID}}, "primary": true, "sortKey": 0 }
+  ]
+}
+
+
+### Variant 생성 (성공)
+# @name create_variant_ok
+POST {{VariantBase}}
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "skuCode": "SKU-TSHIRT-0001-BLACK-M",
+  "size": "M",
+  "color": "BLACK",
+  "barcode": "8801234567890",
+  "weightG": 250,
+  "lengthMm": 300,
+  "widthMm": 200,
+  "heightMm": 30,
+  "attributesJson": "{\"material\":\"cotton\",\"fit\":\"regular\"}"
+}
+
+### Variant SKU 중복 (실패 예상: DUPLICATE_VARIANT_SKU)
+# @name create_variant_dup
+POST {{VariantBase}}
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "skuCode": "SKU-TSHIRT-0001-BLACK-M"
+}

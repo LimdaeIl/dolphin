@@ -3,6 +3,7 @@ package com.book.dolphin.product.domain.exception;
 import com.book.dolphin.common.exception.ErrorCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.graphql.GraphQlProperties.Http;
 import org.springframework.http.HttpStatus;
 
 @Getter
@@ -14,7 +15,7 @@ public enum ProductErrorCode implements ErrorCode {
     DUPLICATE_SALE_PERIOD(HttpStatus.CONFLICT, "기존 할인 기간과 겹칩니다."),
     CANNOT_PUBLISH_WITH_INACTIVE_CATEGORY(HttpStatus.BAD_REQUEST,
             "비활성 카테고리가 연결되어 있어 상품을 공개할 수 없습니다."),
-    INVALID_SALE_PERIOD(HttpStatus.BAD_REQUEST, "할인 기간이 올바르지 않습니다. (종료가 시작보다 이릅니다)"),
+    INVALID_SALE_PERIOD(HttpStatus.BAD_REQUEST, "할인 기간이 올바르지 않습니다. (종료가 시작보다 빠릅니다)"),
     SALE_NOT_CHEAPER_THAN_LIST(HttpStatus.BAD_REQUEST, "세일가는 정가보다 작아야 합니다."),
     DUPLICATE_CATEGORY(HttpStatus.BAD_REQUEST, "카테고리가 중복되었습니다. categoryId=%s"),
     PRICE_REQUIRED(HttpStatus.BAD_REQUEST, "가격 정보는 필수입니다."),
@@ -26,11 +27,14 @@ public enum ProductErrorCode implements ErrorCode {
     INVENTORY_OUT_OF_STOCK(HttpStatus.BAD_REQUEST, "재고가 부족하여 할당할 수 없습니다. 요청 수량: %s"),
     INCORRECT_DEALLOCATION_QUANTITY(HttpStatus.BAD_REQUEST, "잘못된 할당 해제 수량입니다. 할당 해제 수량: %s"),
     QUANTITY_IN_STOCK_MINIMUM_ONE(HttpStatus.BAD_REQUEST, "입고 수량은 최소 1이상이어야만 합니다: %s"),
-    DEDUCT_MORE_THEN_AMOUNT(HttpStatus.BAD_REQUEST, "보유수량보다 많이 차감할 수 없습니다: %s"), 
+    DEDUCT_MORE_THAN_AMOUNT(HttpStatus.BAD_REQUEST, "보유수량보다 많이 차감할 수 없습니다: %s"),
     AT_LEAST_ONE_PRODUCTID_OR_SKU_CODE(HttpStatus.BAD_REQUEST, "productId 또는 skuCode는 최소 하나가 필요합니다."),
     BLANK_SKU_CODE(HttpStatus.BAD_REQUEST, "SKU가 null 또는 빈 문자열로 유효하지 않습니다."),
-    INVALID_QUANTITY_ONLY_POSITIVE(HttpStatus.BAD_REQUEST, "할당 작업은 양수 값만 허용됩니다.");
-
+    INVALID_QUANTITY_ONLY_POSITIVE(HttpStatus.BAD_REQUEST, "할당 작업은 양수 값만 허용됩니다."),
+    DUPLICATE_VARIANT_SKU(HttpStatus.BAD_REQUEST, "동일한 SKU를 갖는 배리언트가 존재합니다."),
+    INVALID_VARIANT_ID(HttpStatus.BAD_REQUEST, "유효하지 않은 variantId입니다: %s"),
+    NOT_FOUND_VARIANT(HttpStatus.NOT_FOUND, "변형(Variant)을 찾을 수 없습니다: %s"),
+    AT_LEAST_ONE_VARIANTID_OR_SKU_CODE(HttpStatus.BAD_REQUEST, "variantId 또는 skuCode 중 하나는 반드시 필요합니다.");
 
     private final HttpStatus httpStatus;
     private final String messageTemplate;

@@ -4,12 +4,12 @@ import com.book.dolphin.product.application.dto.response.InventoryResponse;
 import com.book.dolphin.product.domain.entity.Inventory;
 import com.book.dolphin.product.domain.entity.InventoryLedger;
 import com.book.dolphin.product.domain.entity.InventoryLedger.LedgerEventType;
-import com.book.dolphin.product.domain.entity.Product;
+import com.book.dolphin.product.domain.entity.ProductVariant;
 import com.book.dolphin.product.domain.exception.ProductErrorCode;
 import com.book.dolphin.product.domain.exception.ProductException;
 import com.book.dolphin.product.domain.repository.InventoryLedgerRepository;
 import com.book.dolphin.product.domain.repository.InventoryRepository;
-import com.book.dolphin.product.domain.repository.ProductRepository;
+import com.book.dolphin.product.domain.repository.ProductVariantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,36 +20,33 @@ public class InventoryService {
 
     private final InventoryRepository inventoryRepository;
     private final InventoryLedgerRepository ledgerRepository;
-    private final ProductRepository productRepository;
+    private final ProductVariantRepository variantRepository;
 
+    // 초기화: variantId만 받는다. skuCode는 variant에서 가져와 캐싱한다.
     @Transactional
-    public InventoryResponse init(String skuCode, Long productId, long onHand, long safetyStock,
+    public InventoryResponse init(Long variantId, long onHand, long safetyStock,
             boolean backorderable) {
-
-        if (skuCode == null || skuCode.isBlank()) {
-            throw new ProductException(ProductErrorCode.BLANK_SKU_CODE);
+        if (variantId == null || variantId <= 0) {
+            throw new ProductException(ProductErrorCode.INVALID_VARIANT_ID, variantId);
+        }
+        if (inventoryRepository.existsByVariantId(variantId)) {
+            throw new ProductException(ProductErrorCode.ALREADY_EXISTS_INVENTORY, variantId);
         }
 
-        Product product = productRepository.findById(productId)
+        ProductVariant variant = variantRepository.findById(variantId)
                 .orElseThrow(
-                        () -> new ProductException(ProductErrorCode.NOT_FOUND_PRODUCT, productId));
+                        () -> new ProductException(ProductErrorCode.NOT_FOUND_VARIANT, variantId));
 
-        // (선택) 사전 중복 가드 — uk_inventory_product_sku 위반을 사전에 차단
-        boolean exists = inventoryRepository.existsByProductIdAndSkuCode(productId, skuCode);
-        if (exists) {
-            throw new ProductException(ProductErrorCode.ALREADY_EXISTS_INVENTORY, productId,
-                    skuCode);
-        }
-
-        Inventory inv = Inventory.of(product, skuCode, onHand, safetyStock, backorderable);
-
+        Inventory inv = Inventory.of(variant, onHand, safetyStock, backorderable);
         inventoryRepository.save(inv);
         return InventoryResponse.of(inv);
-
     }
 
     @Transactional
     public InventoryResponse inbound(Long inventoryId, long qty, String reason) {
+        if (qty <= 0) {
+            throw new ProductException(ProductErrorCode.INVALID_QUANTITY_ONLY_POSITIVE, qty);
+        }
         Inventory inv = get(inventoryId);
         inv.increaseOnHand(qty);
         ledgerRepository.save(InventoryLedger.builder()
@@ -90,6 +87,7 @@ public class InventoryService {
             throw new ProductException(ProductErrorCode.INVALID_QUANTITY_ONLY_POSITIVE, qty);
         }
         Inventory inv = get(inventoryId);
+        // 할당 → 출고 순서
         inv.deallocate(qty);
         inv.decreaseOnHand(qty);
         ledgerRepository.save(InventoryLedger.builder()
@@ -105,35 +103,24 @@ public class InventoryService {
 
     @Transactional(readOnly = true)
     public InventoryResponse getById(Long inventoryId) {
-        Inventory inv = get(inventoryId);
-        return InventoryResponse.of(inv);
+        return InventoryResponse.of(get(inventoryId));
     }
 
+    // 조회 키: variantId 우선, 없으면 skuCode(전역 캐시값)로 첫 건
     @Transactional(readOnly = true)
-    public InventoryResponse getByKey(Long productId, String skuCode) {
-        if ((productId == null || productId <= 0) && (skuCode == null || skuCode.isBlank())) {
-            throw new ProductException(ProductErrorCode.AT_LEAST_ONE_PRODUCTID_OR_SKU_CODE);
+    public InventoryResponse getByKey(Long variantId, String skuCode) {
+        if ((variantId == null || variantId <= 0) && (skuCode == null || skuCode.isBlank())) {
+            throw new ProductException(ProductErrorCode.AT_LEAST_ONE_VARIANTID_OR_SKU_CODE);
         }
-
-        // 우선순위: productId+skuCode → skuCode 단독 → productId 단독(여러개면 1개 강제 X: 필요시 목록 API로 분리)
-        if (productId != null && productId > 0 && skuCode != null && !skuCode.isBlank()) {
-            Inventory inv = inventoryRepository.findByProductIdAndSkuCode(productId, skuCode)
+        if (variantId != null && variantId > 0) {
+            Inventory inv = inventoryRepository.findByVariantId(variantId)
                     .orElseThrow(() -> new ProductException(ProductErrorCode.NOT_FOUND_INVENTORY,
-                            "productId=" + productId + ", sku=" + skuCode));
+                            variantId));
             return InventoryResponse.of(inv);
         }
-        if (skuCode != null && !skuCode.isBlank()) {
-            Inventory inv = inventoryRepository.findFirstBySkuCodeOrderByIdAsc(skuCode)
-                    .orElseThrow(() -> new ProductException(ProductErrorCode.NOT_FOUND_INVENTORY,
-                            skuCode));
-            return InventoryResponse.of(inv);
-
-        }
-        Inventory inv = inventoryRepository.findFirstByProductIdOrderByIdAsc(productId)
-                .orElseThrow(() -> new ProductException(ProductErrorCode.NOT_FOUND_INVENTORY,
-                        productId));
-
+        Inventory inv = inventoryRepository.findFirstBySkuCodeOrderByIdAsc(skuCode)
+                .orElseThrow(
+                        () -> new ProductException(ProductErrorCode.NOT_FOUND_INVENTORY, skuCode));
         return InventoryResponse.of(inv);
-
     }
 }
