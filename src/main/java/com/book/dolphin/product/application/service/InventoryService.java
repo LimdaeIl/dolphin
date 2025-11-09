@@ -25,6 +25,11 @@ public class InventoryService {
     @Transactional
     public InventoryResponse init(String skuCode, Long productId, long onHand, long safetyStock,
             boolean backorderable) {
+
+        if (skuCode == null || skuCode.isBlank()) {
+            throw new ProductException(ProductErrorCode.BLANK_SKU_CODE);
+        }
+
         Product product = productRepository.findById(productId)
                 .orElseThrow(
                         () -> new ProductException(ProductErrorCode.NOT_FOUND_PRODUCT, productId));
@@ -55,6 +60,9 @@ public class InventoryService {
 
     @Transactional
     public InventoryResponse allocate(Long inventoryId, long qty, String reason) {
+        if (qty <= 0) {
+            throw new ProductException(ProductErrorCode.INVALID_QUANTITY_ONLY_POSITIVE, qty);
+        }
         Inventory inv = get(inventoryId);
         inv.allocate(qty);
         ledgerRepository.save(InventoryLedger.builder()
@@ -65,6 +73,9 @@ public class InventoryService {
 
     @Transactional
     public InventoryResponse deallocate(Long inventoryId, long qty, String reason) {
+        if (qty <= 0) {
+            throw new ProductException(ProductErrorCode.INVALID_QUANTITY_ONLY_POSITIVE, qty);
+        }
         Inventory inv = get(inventoryId);
         inv.deallocate(qty);
         ledgerRepository.save(InventoryLedger.builder()
@@ -75,6 +86,9 @@ public class InventoryService {
 
     @Transactional
     public InventoryResponse ship(Long inventoryId, long qty, String reason) {
+        if (qty <= 0) {
+            throw new ProductException(ProductErrorCode.INVALID_QUANTITY_ONLY_POSITIVE, qty);
+        }
         Inventory inv = get(inventoryId);
         inv.deallocate(qty);
         inv.decreaseOnHand(qty);
