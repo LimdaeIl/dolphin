@@ -8,7 +8,8 @@ Content-Type: application/json
 
 {
   "name": "남성",
-  "slug": "men"
+  "slug": "men",
+  "status": "ACTIVE"
 }
 
 > {% client.global.set("MEN_ID", response.body.data.id); %}
@@ -20,7 +21,8 @@ Content-Type: application/json
 
 {
   "name": "여성",
-  "slug": "women"
+  "slug": "women",
+  "status": "ACTIVE"
 }
 
 > {% client.global.set("WOMEN_ID", response.body.data.id); %}
@@ -34,7 +36,8 @@ Content-Type: application/json
 {
   "name": "상의",
   "slug": "top",
-  "parentId": {{MEN_ID}}
+  "parentId": {{MEN_ID}},
+  "status": "ACTIVE"
 }
 
 > {% client.global.set("MEN_TOP_ID", response.body.data.id); %}
@@ -47,7 +50,8 @@ Content-Type: application/json
 {
   "name": "하의",
   "slug": "bottom",
-  "parentId": {{MEN_ID}}
+  "parentId": {{MEN_ID}},
+  "status": "ACTIVE"
 }
 
 > {% client.global.set("MEN_BOTTOM_ID", response.body.data.id); %}
@@ -60,7 +64,8 @@ Content-Type: application/json
 {
   "name": "셔츠",
   "slug": "shirts",
-  "parentId": {{MEN_TOP_ID}}
+  "parentId": {{MEN_TOP_ID}},
+  "status": "ACTIVE"
 }
 
 ### 6) 남성/하의/청바지 (parent = 남성/하의)
@@ -71,7 +76,8 @@ Content-Type: application/json
 {
   "name": "청바지",
   "slug": "jeans",
-  "parentId": {{MEN_BOTTOM_ID}}
+  "parentId": {{MEN_BOTTOM_ID}},
+  "status": "ACTIVE"
 }
 
 
@@ -83,7 +89,8 @@ Content-Type: application/json
 {
   "name": "상의",
   "slug": "top",
-  "parentId": {{WOMEN_ID}}
+  "parentId": {{WOMEN_ID}},
+  "status": "ACTIVE"
 }
 
 > {% client.global.set("WOMEN_TOP_ID", response.body.data.id); %}
@@ -96,7 +103,8 @@ Content-Type: application/json
 {
   "name": "아우터",
   "slug": "outer",
-  "parentId": {{WOMEN_ID}}
+  "parentId": {{WOMEN_ID}},
+  "status": "ACTIVE"
 }
 
 > {% client.global.set("WOMEN_OUTER_ID", response.body.data.id); %}
@@ -109,7 +117,8 @@ Content-Type: application/json
 {
   "name": "셔츠",
   "slug": "shirts",
-  "parentId": {{WOMEN_TOP_ID}}
+  "parentId": {{WOMEN_TOP_ID}},
+  "status": "ACTIVE"
 }
 
 ### 10) 여성/아우터/코트 (parent = 여성/아우터)
@@ -120,5 +129,6 @@ Content-Type: application/json
 {
   "name": "코트",
   "slug": "coat",
-  "parentId": {{WOMEN_OUTER_ID}}
+  "parentId": {{WOMEN_OUTER_ID}},
+  "status": "ACTIVE"
 }
