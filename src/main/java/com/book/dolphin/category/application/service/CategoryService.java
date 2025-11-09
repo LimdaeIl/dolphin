@@ -8,9 +8,12 @@ import static com.book.dolphin.category.domain.exception.CategoryErrorCode.DUPLI
 import static com.book.dolphin.category.domain.exception.CategoryErrorCode.PARENT_CATEGORY_NOT_FOUND;
 
 import com.book.dolphin.category.application.dto.request.CreateCategoryRequest;
+import com.book.dolphin.category.application.dto.request.UpdateCategoryRequest;
+import com.book.dolphin.category.application.dto.response.BreadcrumbNode;
 import com.book.dolphin.category.application.dto.response.CategoryDetailResponse;
 import com.book.dolphin.category.application.dto.response.CreateCategoryResponse;
 import com.book.dolphin.category.application.dto.response.MegaMenuResponse;
+import com.book.dolphin.category.application.dto.response.MoveCategoryResponse;
 import com.book.dolphin.category.domain.entity.Category;
 import com.book.dolphin.category.domain.entity.CategoryClosure;
 import com.book.dolphin.category.domain.entity.CategoryStatus;
@@ -140,13 +143,13 @@ public class CategoryService {
 
         // 4) 루트들의 childCount 뱃지 계산 (쿼리 1번)
         //    countChildrenByParents 결과 형식: Object[] { parentId(Long), childCount(Number) }
-        List<Long> parentIds = new ArrayList<Long>(roots.size());
+        List<Long> parentIds = new ArrayList<>(roots.size());
         for (Category r : roots) {
             parentIds.add(r.getId());
         }
 
         List<Object[]> countsRaw = categoryRepository.countChildrenByParents(parentIds, activeOnly);
-        Map<Long, Integer> countMap = new HashMap<Long, Integer>(
+        Map<Long, Integer> countMap = new HashMap<>(
                 Math.max(16, roots.size() * 2)
         );
         for (Object[] row : countsRaw) {
@@ -156,7 +159,7 @@ public class CategoryService {
         }
 
         // 5) DTO 매핑 (루트들, 선택 루트, 선택 루트의 직계)
-        List<MegaMenuResponse.Node> rootsDto = new ArrayList<MegaMenuResponse.Node>(roots.size());
+        List<MegaMenuResponse.Node> rootsDto = new ArrayList<>(roots.size());
         for (Category r : roots) {
             Integer childCount = countMap.get(r.getId());
             rootsDto.add(new MegaMenuResponse.Node(
@@ -175,7 +178,7 @@ public class CategoryService {
                 selected.getImageUrl()
         );
 
-        List<MegaMenuResponse.Node> childrenDto = new ArrayList<MegaMenuResponse.Node>(
+        List<MegaMenuResponse.Node> childrenDto = new ArrayList<>(
                 children.size());
         for (Category c : children) {
             childrenDto.add(new MegaMenuResponse.Node(
@@ -209,10 +212,10 @@ public class CategoryService {
         // 2) 브레드크럼 (항상 제공 권장)
         List<Category> ancestorEntities = categoryRepository.findBreadcrumbAncestors(id,
                 activeOnly);
-        List<CategoryDetailResponse.BreadcrumbNode> breadcrumb =
+        List<BreadcrumbNode> breadcrumb =
                 new ArrayList<>(ancestorEntities.size());
         for (Category a : ancestorEntities) {
-            breadcrumb.add(new CategoryDetailResponse.BreadcrumbNode(
+            breadcrumb.add(new BreadcrumbNode(
                     a.getId(), a.getName(), a.getSlug()
             ));
         }
@@ -272,6 +275,190 @@ public class CategoryService {
             throw new CategoryException(CategoryErrorCode.EMPTY_SLUG);
         }
         return s;
+    }
+
+    @Transactional
+    public void updateBasic(Long id, UpdateCategoryRequest request) {
+        // 0) 대상 로드
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new CategoryException(
+                        CategoryErrorCode.CATEGORY_NOT_FOUND, id));
+
+        // 1) 부분 업데이트 (null인 항목은 건드리지 않음)
+        category.changeName(request.name());
+        category.changeImageUrl(request.imageUrl());
+        category.changeSortOrder(request.sortOrder());
+        category.changeStatus(request.status());
+    }
+
+
+    @Transactional
+    public MoveCategoryResponse move(Long id, Long newParentId) {
+
+        // 0) 대상/새 부모 로딩
+        Category node = categoryRepository.findById(id)
+                .orElseThrow(() -> new CategoryException(CategoryErrorCode.CATEGORY_NOT_FOUND, id));
+
+        Category newParent = null;
+        if (newParentId != null) {
+            newParent = categoryRepository.findById(newParentId)
+                    .orElseThrow(() -> new CategoryException(
+                            CategoryErrorCode.PARENT_CATEGORY_NOT_FOUND, newParentId));
+        }
+
+        // 1) 사이클 방지: newParent가 node 자신 또는 node의 자손이면 금지
+        //    (자기 자손 밑으로 이동하면 트리가 순환됨)
+        if (newParent != null) {
+            // node의 서브트리(자기 자신 포함) 로딩
+            List<Category> subtreeForCycle = categoryRepository.findSubtreeDescendants(id);
+            for (Category d : subtreeForCycle) {
+                if (d.getId().equals(newParent.getId())) {
+                    throw new CategoryException(
+                            CategoryErrorCode.INVALID_REPARENT_TARGET, id, newParentId);
+                }
+            }
+        }
+
+        // 2) 유니크 제약 사전검사
+        //    - (부모, slug) 유니크: 새 부모 아래 동일 slug 형제 존재 금지(자기 자신 제외)
+        //    - path(전역 유니크): newPrefix가 서브트리 외부에서 이미 존재하면 금지
+        String slug = node.getSlug();
+
+        if (newParent == null) {
+            // 루트 셋에서 slug 충돌? (자기 자신이 원래 루트였던 경우는 예외 상황 고려)
+            boolean slugTakenAtRoot = categoryRepository.existsByParentIsNullAndSlug(slug);
+            boolean movingToRootFromNonRoot = (node.getParent() != null);
+            if (slugTakenAtRoot && movingToRootFromNonRoot) {
+                // 의도를 명확하게: 루트 묶음에 동일 slug 존재 -> 금지
+                throw new CategoryException(CategoryErrorCode.DUPLICATE_SLUG_BY_ROOT, slug);
+            }
+        } else {
+            // 새 부모 밑에서 동일 slug 존재? (단, 원래 부모 == 새 부모라면 자기 자신일 수 있으므로 제외 로직 필요)
+            // 여기선 보수적으로: 원래 부모와 다르고, 동일 slug가 존재하면 금지
+            if (!newParent.equals(node.getParent())
+                    && categoryRepository.existsByParentIdAndSlug(newParent.getId(), slug)) {
+                throw new CategoryException(CategoryErrorCode.DUPLICATE_SLUG_BY_PARENT,
+                        newParent.getId(), slug);
+            }
+        }
+
+        // 3) 최대 깊이 검증: 새 위치에서 서브트리 최심 깊이가 MAX_DEPTH를 넘는지 검사
+        //    - maxOffset: 서브트리에서 node보다 가장 깊은 노드까지의 거리
+        //    - deepestNewDepth = (newParentDepth + 1 + maxOffset)
+        Integer maxOffset = categoryRepository.findMaxDepthOffsetInSubtree(id);
+        int subtreeMaxOffset = (maxOffset == null) ? 0 : maxOffset; // leaf면 0
+        int newParentDepth =
+                (newParent == null) ? -1 : newParent.getDepth(); // 루트는 0이어야 하므로 base를 -1로
+        int deepestNewDepth = newParentDepth + 1 + subtreeMaxOffset;
+        if (deepestNewDepth > MAX_DEPTH) {
+            throw new CategoryException(CategoryErrorCode.MAX_DEPTH_EXCEEDED, MAX_DEPTH);
+        }
+
+        // 4) 새 prefix 계산 (oldPrefix -> newPrefix)
+        String oldPrefix = node.getPath(); // ex. "/men/top"
+        String newPrefix = (newParent == null) ? ("/" + slug) : (newParent.getPath() + "/" + slug);
+
+        // path 전역 유니크 사전검증:
+        // 자기 자신(oldPrefix)와 동일하면 OK. 다르면 "서브트리 외부"와 충돌하는지 추가 확인.
+        if (!oldPrefix.equals(newPrefix)
+                && categoryRepository.existsByPathOtherThan(newPrefix, oldPrefix)) {
+            throw new CategoryException(CategoryErrorCode.ALREADY_PATH, newPrefix);
+        }
+
+        // 5) 서브트리 로딩 (node 포함, 깊이 오름차순) - 클로저 테이블 기반
+        List<Category> subtree = categoryRepository.findSubtreeDescendants(id);
+
+        // 6) 부모/깊이/path 재계산
+        //    - node.setParentUnsafe(newParent)
+        //    - newDepth = baseDepth + (oldDepth - nodeOldDepth)
+        //    - newPath  = newPrefix + suffix (suffix = oldPath.substring(oldPrefix.length()))
+        node.setParentUnsafe(newParent); // 부모 변경 (검증은 이미 위에서 완료됨)
+
+        int baseDepth = (newParent == null) ? 0 : newParent.getDepth() + 1;
+        int nodeOldDepth = node.getDepth();
+
+        for (Category d : subtree) {
+            // depth 재계산
+            int offset = d.getDepth() - nodeOldDepth;
+            int newDepth = baseDepth + offset;
+            d.setDepthUnsafe(newDepth);
+
+            // path 재계산 (프리픽스 치환)
+            String dp = d.getPath();
+            if (!dp.startsWith(oldPrefix)) {
+                // 데이터 무결성 방어: 서브트리여야 하는데 prefix가 안 맞으면 문제
+                throw new CategoryException(CategoryErrorCode.SUB_TREE_INCONSISTENCY, dp);
+            }
+            String suffix = dp.substring(oldPrefix.length()); // "" 또는 "/shirts" 등
+            String newPath = newPrefix + suffix;
+
+            // 루프 진행 중에도 path 충돌 방어 (전역 유니크 제약으로도 잡히지만, 선제 확인)
+            if (!dp.equals(newPath) && categoryRepository.existsByPath(newPath)) {
+                throw new CategoryException(CategoryErrorCode.ALREADY_PATH, newPath);
+            }
+            d.setPathUnsafe(newPath);
+        }
+
+        // 7) Closure 재구성 (부분 갱신)
+        //    전략:
+        //    7-1) 서브트리 외부 조상 링크만 삭제 (내부 self/내부조상 링크는 유지 -> 내부 거리 불변)
+        //    7-2) newParent의 조상 체인(ancestor, depthToNewParent)을 한 번에 조회
+        //    7-3) (a) newParent -> 모든 자손, (b) ancestor -> 모든 자손 링크를 공식으로 일괄 삽입
+        //        depth(newParent -> d) = 1 + offset
+        //        depth(ancestor -> d)  = depth(ancestor-> newParent) + 1 + offset
+        //        where offset = d.depth - (newParent.depth + 1)
+        // 7-1. 외부 조상 링크 삭제
+        List<Long> subtreeIds = subtree.stream().map(Category::getId).toList();
+        categoryClosureRepository.deleteLinksOutsideSubtree(subtreeIds);
+
+        // 7-2. (ancestor, depthToNewParent) 목록
+        List<Object[]> ancWithDepth = (newParent == null)
+                ? List.of() // 루트로 이동이면 상위 조상 없음
+                : categoryClosureRepository.findAncestorsWithDepth(newParent.getId());
+
+        // 7-3) 일괄 삽입
+        List<CategoryClosure> insertLinks = new ArrayList<>();
+        int newParentBaseDepth = (newParent == null) ? -1 : newParent.getDepth();
+
+        // (a) newParent self(0) -> 모든 자손
+        if (newParent != null) {
+            for (Category d : subtree) {
+                int offset = d.getDepth() - (newParentBaseDepth + 1); // newParent→descendant
+                insertLinks.add(CategoryClosure.create(newParent, d, 1 + offset));
+            }
+        }
+
+        // (b) ancestor -> 모든 자손 (ancestor와 newParent 사이 깊이를 이용)
+        for (Object[] row : ancWithDepth) {
+            Category ancestor = (Category) row[0];
+            int depthAncToNewParent = ((Number) row[1]).intValue(); // ancestor→newParent
+            for (Category d : subtree) {
+                int offset = d.getDepth() - (newParentBaseDepth + 1);
+                insertLinks.add(
+                        CategoryClosure.create(ancestor, d, depthAncToNewParent + 1 + offset));
+            }
+        }
+
+        categoryClosureRepository.saveAll(insertLinks);
+
+        // 8) 응답 조립
+        Long newParentIdOrNull = (newParent == null) ? null : newParent.getId();
+
+        // 이동 직후의 브레드크럼 재조회 (관리자 화면이면 activeOnly = false 권장)
+        List<Category> ancestorsForBreadcrumb =
+                categoryRepository.findBreadcrumbAncestors(node.getId(), /*activeOnly=*/false);
+
+        List<BreadcrumbNode> breadcrumb = ancestorsForBreadcrumb.stream()
+                .map(a -> new BreadcrumbNode(a.getId(), a.getName(), a.getSlug()))
+                .toList();
+
+        return new MoveCategoryResponse(
+                node.getId(),
+                newParentIdOrNull,
+                node.getPath(),   // 이동 후 최신 path
+                node.getDepth(),  // 이동 후 최신 depth
+                breadcrumb        // 루트 -> 현재까지
+        );
     }
 }
 

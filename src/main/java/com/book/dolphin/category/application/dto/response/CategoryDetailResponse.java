@@ -17,10 +17,4 @@ public record CategoryDetailResponse(
             Integer depth,
             String imageUrl
     ) {}
-
-    public record BreadcrumbNode(
-            Long id,
-            String name,
-            String slug
-    ) {}
 }

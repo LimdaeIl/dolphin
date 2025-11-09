@@ -1,9 +1,12 @@
 package com.book.dolphin.category.presentation;
 
 import com.book.dolphin.category.application.dto.request.CreateCategoryRequest;
+import com.book.dolphin.category.application.dto.request.MoveCategoryRequest;
+import com.book.dolphin.category.application.dto.request.UpdateCategoryRequest;
 import com.book.dolphin.category.application.dto.response.CategoryDetailResponse;
 import com.book.dolphin.category.application.dto.response.CreateCategoryResponse;
 import com.book.dolphin.category.application.dto.response.MegaMenuResponse;
+import com.book.dolphin.category.application.dto.response.MoveCategoryResponse;
 import com.book.dolphin.category.application.service.CategoryService;
 import com.book.dolphin.common.response.ApiResponse;
 import com.book.dolphin.common.response.ResultCode;
@@ -15,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -74,4 +78,30 @@ public class CategoryController {
         CategoryDetailResponse response = categoryService.getDetail(id, activeOnly, includeSet);
         return ResponseEntity.ok(new ApiResponse<>(ResultCode.SUCCESS, null, response));
     }
+
+    // 경로 기반 조회 (옵션)(TODO)
+    // 카테고리별 상품 페이징(확장)(TODO)
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> updateBasic(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateCategoryRequest request
+    ) {
+        categoryService.updateBasic(id, request);
+        return ResponseEntity.ok(new ApiResponse<>(ResultCode.SUCCESS, null, null));
+    }
+
+    @PatchMapping("/{id}/move")
+    public ResponseEntity<ApiResponse<MoveCategoryResponse>> move(
+            @PathVariable Long id,
+            @RequestBody @Valid MoveCategoryRequest request
+    ) {
+            MoveCategoryResponse move = categoryService.move(id, request.newParentId());
+        return ResponseEntity.ok(new ApiResponse<>(ResultCode.SUCCESS, null, move));
+    }
+
+    // 슬러그 수정
+    // 재정렬(TODO)
+    // 상태전환(TODO)
+
 }
