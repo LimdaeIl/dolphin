@@ -24,7 +24,6 @@ Content-Type: application/json
 {
   "name": "미니멀 티셔츠",
   "content": "<p>기본 설명</p>",
-  "skuCode": "SKU-TSHIRT-0001",
   "price": { "listPriceWon": 12900 },
   "categories": [
     { "categoryId": {{MEN_TOP_ID}}, "primary": true, "sortKey": 0 }

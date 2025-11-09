@@ -12,6 +12,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -96,8 +97,8 @@ public class ProductVariant {
             Long widthMm,
             Long heightMm,
             String attributesJson) {
-        this.product = product;
-        this.skuCode = skuCode;
+        this.product = Objects.requireNonNull(product, "product must not be null");
+        this.skuCode = Objects.requireNonNull(skuCode, "skuCode must not be null");
         this.size = size;
         this.color = color;
         this.barcode = barcode;

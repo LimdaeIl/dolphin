@@ -9,6 +9,7 @@ import com.book.dolphin.product.domain.exception.ProductException;
 import com.book.dolphin.product.domain.repository.ProductRepository;
 import com.book.dolphin.product.domain.repository.ProductVariantRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,8 +49,12 @@ public class VariantService {
                 .heightMm(request.heightMm())
                 .attributesJson(request.attributesJson())
                 .build();
-
-        ProductVariant saved = productVariantRepository.save(variant);
-        return VariantResponse.of(saved);
+        try {
+            ProductVariant saved = productVariantRepository.save(variant);
+            return VariantResponse.of(saved);
+        } catch (
+                DataIntegrityViolationException ex) {
+            throw new ProductException(ProductErrorCode.DUPLICATE_VARIANT_SKU, request.skuCode());
+        }
     }
 }

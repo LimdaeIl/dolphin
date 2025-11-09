@@ -120,6 +120,9 @@ public class Product {
     }
 
     public void reorderMedia(Long mediaId, int newSortKey) {
+        if (mediaId == null) {
+            throw new ProductException(ProductErrorCode.MEDIA_ID_NULL);
+        }
         mediaList.stream()
                 .filter(m -> m.getId().equals(mediaId))
                 .findFirst()

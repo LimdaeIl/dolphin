@@ -23,7 +23,7 @@ public enum ProductErrorCode implements ErrorCode {
     NOT_FOUND_INVENTORY(HttpStatus.NOT_FOUND, "재고를 찾을 수 없습니다: %s"),
     NOT_FOUND_PRODUCT(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다."),
     ALREADY_EXISTS_INVENTORY(HttpStatus.CONFLICT,
-            "이미 존재하는 재고입니다. productId=%s, sku=%s"),
+            "이미 존재하는 재고입니다. variantId=%s"),
     INVENTORY_OUT_OF_STOCK(HttpStatus.BAD_REQUEST, "재고가 부족하여 할당할 수 없습니다. 요청 수량: %s"),
     INCORRECT_DEALLOCATION_QUANTITY(HttpStatus.BAD_REQUEST, "잘못된 할당 해제 수량입니다. 할당 해제 수량: %s"),
     QUANTITY_IN_STOCK_MINIMUM_ONE(HttpStatus.BAD_REQUEST, "입고 수량은 최소 1이상이어야만 합니다: %s"),
@@ -34,7 +34,8 @@ public enum ProductErrorCode implements ErrorCode {
     DUPLICATE_VARIANT_SKU(HttpStatus.BAD_REQUEST, "동일한 SKU를 갖는 배리언트가 존재합니다."),
     INVALID_VARIANT_ID(HttpStatus.BAD_REQUEST, "유효하지 않은 variantId입니다: %s"),
     NOT_FOUND_VARIANT(HttpStatus.NOT_FOUND, "변형(Variant)을 찾을 수 없습니다: %s"),
-    AT_LEAST_ONE_VARIANTID_OR_SKU_CODE(HttpStatus.BAD_REQUEST, "variantId 또는 skuCode 중 하나는 반드시 필요합니다.");
+    AT_LEAST_ONE_VARIANTID_OR_SKU_CODE(HttpStatus.BAD_REQUEST, "variantId 또는 skuCode 중 하나는 반드시 필요합니다."), MEDIA_ID_NULL(
+            HttpStatus.BAD_REQUEST, "미디어 ID가 NULL 입니다.");
 
     private final HttpStatus httpStatus;
     private final String messageTemplate;
