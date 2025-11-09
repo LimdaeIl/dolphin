@@ -1,5 +1,6 @@
 package com.book.dolphin.product.application.service;
 
+import com.book.dolphin.product.application.dto.response.InventoryResponse;
 import com.book.dolphin.product.domain.entity.Inventory;
 import com.book.dolphin.product.domain.entity.InventoryLedger;
 import com.book.dolphin.product.domain.entity.InventoryLedger.LedgerEventType;
@@ -22,7 +23,7 @@ public class InventoryService {
     private final ProductRepository productRepository;
 
     @Transactional
-    public Inventory init(String skuCode, Long productId, long onHand, long safetyStock,
+    public InventoryResponse init(String skuCode, Long productId, long onHand, long safetyStock,
             boolean backorderable) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(
@@ -36,48 +37,51 @@ public class InventoryService {
         }
 
         Inventory inv = Inventory.of(product, skuCode, onHand, safetyStock, backorderable);
-        return inventoryRepository.save(inv);
+
+        inventoryRepository.save(inv);
+        return InventoryResponse.of(inv);
+
     }
 
     @Transactional
-    public Inventory inbound(Long inventoryId, long qty, String reason) {
+    public InventoryResponse inbound(Long inventoryId, long qty, String reason) {
         Inventory inv = get(inventoryId);
         inv.increaseOnHand(qty);
         ledgerRepository.save(InventoryLedger.builder()
                 .inventory(inv).eventType(LedgerEventType.INBOUND).quantity(+qty).reason(reason)
                 .build());
-        return inv;
+        return InventoryResponse.of(inv);
     }
 
     @Transactional
-    public Inventory allocate(Long inventoryId, long qty, String reason) {
+    public InventoryResponse allocate(Long inventoryId, long qty, String reason) {
         Inventory inv = get(inventoryId);
         inv.allocate(qty);
         ledgerRepository.save(InventoryLedger.builder()
                 .inventory(inv).eventType(LedgerEventType.ALLOCATE).quantity(+qty).reason(reason)
                 .build());
-        return inv;
+        return InventoryResponse.of(inv);
     }
 
     @Transactional
-    public Inventory deallocate(Long inventoryId, long qty, String reason) {
+    public InventoryResponse deallocate(Long inventoryId, long qty, String reason) {
         Inventory inv = get(inventoryId);
         inv.deallocate(qty);
         ledgerRepository.save(InventoryLedger.builder()
                 .inventory(inv).eventType(LedgerEventType.DEALLOCATE).quantity(-qty).reason(reason)
                 .build());
-        return inv;
+        return InventoryResponse.of(inv);
     }
 
     @Transactional
-    public Inventory ship(Long inventoryId, long qty, String reason) {
+    public InventoryResponse ship(Long inventoryId, long qty, String reason) {
         Inventory inv = get(inventoryId);
         inv.deallocate(qty);
         inv.decreaseOnHand(qty);
         ledgerRepository.save(InventoryLedger.builder()
                 .inventory(inv).eventType(LedgerEventType.SHIP).quantity(-qty).reason(reason)
                 .build());
-        return inv;
+        return InventoryResponse.of(inv);
     }
 
     private Inventory get(Long id) {
@@ -86,29 +90,36 @@ public class InventoryService {
     }
 
     @Transactional(readOnly = true)
-    public Inventory getById(Long inventoryId) {
-        return get(inventoryId); // 기존 private get 재사용
+    public InventoryResponse getById(Long inventoryId) {
+        Inventory inv = get(inventoryId);
+        return InventoryResponse.of(inv);
     }
 
     @Transactional(readOnly = true)
-    public Inventory getByKey(Long productId, String skuCode) {
+    public InventoryResponse getByKey(Long productId, String skuCode) {
         if ((productId == null || productId <= 0) && (skuCode == null || skuCode.isBlank())) {
             throw new ProductException(ProductErrorCode.AT_LEAST_ONE_PRODUCTID_OR_SKU_CODE);
         }
 
         // 우선순위: productId+skuCode → skuCode 단독 → productId 단독(여러개면 1개 강제 X: 필요시 목록 API로 분리)
         if (productId != null && productId > 0 && skuCode != null && !skuCode.isBlank()) {
-            return inventoryRepository.findByProductIdAndSkuCode(productId, skuCode)
+            Inventory inv = inventoryRepository.findByProductIdAndSkuCode(productId, skuCode)
                     .orElseThrow(() -> new ProductException(ProductErrorCode.NOT_FOUND_INVENTORY,
                             "productId=" + productId + ", sku=" + skuCode));
+            return InventoryResponse.of(inv);
         }
         if (skuCode != null && !skuCode.isBlank()) {
-            return inventoryRepository.findFirstBySkuCodeOrderByIdAsc(skuCode)
+            Inventory inv = inventoryRepository.findFirstBySkuCodeOrderByIdAsc(skuCode)
                     .orElseThrow(() -> new ProductException(ProductErrorCode.NOT_FOUND_INVENTORY,
                             skuCode));
+            return InventoryResponse.of(inv);
+
         }
-        return inventoryRepository.findFirstByProductIdOrderByIdAsc(productId)
+        Inventory inv = inventoryRepository.findFirstByProductIdOrderByIdAsc(productId)
                 .orElseThrow(() -> new ProductException(ProductErrorCode.NOT_FOUND_INVENTORY,
                         productId));
+
+        return InventoryResponse.of(inv);
+
     }
 }

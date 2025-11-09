@@ -5,7 +5,6 @@ import com.book.dolphin.product.application.dto.request.InitInventoryRequest;
 import com.book.dolphin.product.application.dto.request.QuantityRequest;
 import com.book.dolphin.product.application.dto.response.InventoryResponse;
 import com.book.dolphin.product.application.service.InventoryService;
-import com.book.dolphin.product.domain.entity.Inventory;
 import jakarta.validation.Valid;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +29,7 @@ public class InventoryController {
     public ResponseEntity<ApiResponse<InventoryResponse>> init(
             @Valid @RequestBody InitInventoryRequest request
     ) {
-        Inventory inv = inventoryService.init(
+        InventoryResponse response = inventoryService.init(
                 request.skuCode(),
                 request.productId(),
                 request.onHand(),
@@ -38,8 +37,8 @@ public class InventoryController {
                 request.backorderable()
         );
         return ResponseEntity
-                .created(URI.create("/api/v1/inventories/" + inv.getId()))
-                .body(ApiResponse.success(InventoryResponse.of(inv)));
+                .created(URI.create("/api/v1/inventories/" + response.id()))
+                .body(ApiResponse.success(response));
     }
 
     // 2) 입고(+)
@@ -48,8 +47,9 @@ public class InventoryController {
             @PathVariable Long inventoryId,
             @Valid @RequestBody QuantityRequest req
     ) {
-        Inventory inv = inventoryService.inbound(inventoryId, req.quantity(), req.reason());
-        return ResponseEntity.ok(ApiResponse.success(InventoryResponse.of(inv)));
+        InventoryResponse response = inventoryService.inbound(inventoryId, req.quantity(),
+                req.reason());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     // 3) 할당(장바구니/주문확정 전)
@@ -58,8 +58,9 @@ public class InventoryController {
             @PathVariable Long inventoryId,
             @Valid @RequestBody QuantityRequest req
     ) {
-        Inventory inv = inventoryService.allocate(inventoryId, req.quantity(), req.reason());
-        return ResponseEntity.ok(ApiResponse.success(InventoryResponse.of(inv)));
+        InventoryResponse response = inventoryService.allocate(inventoryId, req.quantity(),
+                req.reason());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     // 4) 할당 해제(주문 취소/만료)
@@ -68,8 +69,9 @@ public class InventoryController {
             @PathVariable Long inventoryId,
             @Valid @RequestBody QuantityRequest req
     ) {
-        Inventory inv = inventoryService.deallocate(inventoryId, req.quantity(), req.reason());
-        return ResponseEntity.ok(ApiResponse.success(InventoryResponse.of(inv)));
+        InventoryResponse response = inventoryService.deallocate(inventoryId, req.quantity(),
+                req.reason());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     // 5) 출고(결제 성공)
@@ -78,15 +80,16 @@ public class InventoryController {
             @PathVariable Long inventoryId,
             @Valid @RequestBody QuantityRequest req
     ) {
-        Inventory inv = inventoryService.ship(inventoryId, req.quantity(), req.reason());
-        return ResponseEntity.ok(ApiResponse.success(InventoryResponse.of(inv)));
+        InventoryResponse response = inventoryService.ship(inventoryId, req.quantity(),
+                req.reason());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     // 0) 단건 조회
     @GetMapping("/{inventoryId}")
     public ResponseEntity<ApiResponse<InventoryResponse>> getOne(@PathVariable Long inventoryId) {
-        Inventory inv = inventoryService.getById(inventoryId);
-        return ResponseEntity.ok(ApiResponse.success(InventoryResponse.of(inv)));
+        InventoryResponse response = inventoryService.getById(inventoryId);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     // (선택) 조건 조회: productId, skuCode 중 하나 이상
@@ -95,8 +98,8 @@ public class InventoryController {
             @RequestParam(required = false) Long productId,
             @RequestParam(required = false) String skuCode
     ) {
-        Inventory inv = inventoryService.getByKey(productId, skuCode);
-        return ResponseEntity.ok(ApiResponse.success(InventoryResponse.of(inv)));
+        InventoryResponse response = inventoryService.getByKey(productId, skuCode);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
 }
